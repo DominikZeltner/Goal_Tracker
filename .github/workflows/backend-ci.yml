@@ -1,0 +1,27 @@
+# .github/workflows/backend-ci.yml
+name: Backend CI
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/backend-ci.yml']
+  pull_request:
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/backend-ci.yml']
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+        working-directory: .
+      - name: Lint (Ruff)
+        run: pip install ruff && ruff check backend/
+        working-directory: .
+      - name: Test (optional)
+        run: pytest backend/ -v
+        working-directory: .
+        continue-on-error: true   # bis Tests existieren
