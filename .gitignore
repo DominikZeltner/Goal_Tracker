@@ -28,6 +28,7 @@ build/
 # ============== IDE (optional: auskommentieren, wenn du sie versionieren willst) ==============
 .idea/
 .vscode/
+.obsidian/
 *.swp
 *.swo
 *~
