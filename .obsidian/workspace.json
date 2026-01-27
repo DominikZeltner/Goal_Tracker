@@ -1,0 +1,191 @@
+{
+  "main": {
+    "id": "3bdd11f2f305b160",
+    "type": "split",
+    "children": [
+      {
+        "id": "f962832578ed1cc2",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d5de0cdcee61ca16",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "SCHRITT-FÜR-SCHRITT-ANLEITUNG.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "SCHRITT-FÜR-SCHRITT-ANLEITUNG"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "d18a11cd5d7b579d",
+    "type": "split",
+    "children": [
+      {
+        "id": "6f01267d523d048f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0eedce17f12a7a2f",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Dateiexplorer"
+            }
+          },
+          {
+            "id": "c6d4cbd64055b037",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Suchen"
+            }
+          },
+          {
+            "id": "d3d9b03a5bea22a9",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Lesezeichen"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "9faeefaaa12b2088",
+    "type": "split",
+    "children": [
+      {
+        "id": "c70fa9bd4a912958",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3d1a898354717af6",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "SCHRITT-FÜR-SCHRITT-ANLEITUNG.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Rückverweise für SCHRITT-FÜR-SCHRITT-ANLEITUNG"
+            }
+          },
+          {
+            "id": "61218fd9d3d93966",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "SCHRITT-FÜR-SCHRITT-ANLEITUNG.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Ausgehende Links von SCHRITT-FÜR-SCHRITT-ANLEITUNG öffnen"
+            }
+          },
+          {
+            "id": "976b39f85cced5b4",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "0c5d25553023a01b",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Alle Eigenschaften"
+            }
+          },
+          {
+            "id": "ab62eeb7c25e907a",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "SCHRITT-FÜR-SCHRITT-ANLEITUNG.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Gliederung von SCHRITT-FÜR-SCHRITT-ANLEITUNG"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Schnellauswahl öffnen": false,
+      "graph:Graph-Ansicht öffnen": false,
+      "canvas:Neuen Canvas erstellen": false,
+      "daily-notes:Heutige Notiz öffnen": false,
+      "templates:Vorlage einfügen": false,
+      "command-palette:Befehlspalette öffnen": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "d5de0cdcee61ca16",
+  "lastOpenFiles": [
+    "KONZEPT-CURSOR-WEBSEITE.md",
+    "SCHRITT-FÜR-SCHRITT-ANLEITUNG.md"
+  ]
+}

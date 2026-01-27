@@ -1,0 +1,56 @@
+# .gitignore – abgestimmt auf Projektstruktur (KONZEPT-CURSOR-WEBSEITE.md, Abschnitt 1.2)
+# Backend: /backend (Python/FastAPI, SQLite)
+# Frontend: /frontend (React/Node)
+# Wurzel: docker-compose.yml, .dockerignore, .github/
+
+# ============== Python (Backend) ==============
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.db
+*.sqlite
+*.sqlite3
+
+# ============== Node (Frontend) ==============
+node_modules/
+dist/
+build/
+.env.local
+.env.*.local
+.npm
+.cache/
+
+# ============== IDE (optional: auskommentieren, wenn du sie versionieren willst) ==============
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ============== OS ==============
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============== Logs (keine großen Log-Dateien committen) ==============
+*.log
+logs/
+*.log.*
+
+# ============== Sonstiges ==============
+.env
+.env.local
+*.bak
+*.tmp
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
