@@ -107,12 +107,12 @@ sowie frontend/dist darin stehen. Wenn nicht, ergänze sie. Kurz begründen.
 
 **Messbare Kriterien:**
 
-| Kriterium | Prüfung | Erfüllt wenn |
-|-----------|---------|---------------|
-| Remote gesetzt | `git remote -v` | `origin` zeigt auf deine GitHub-URL |
-| Branch main | `git branch` | Aktiver Branch ist `main` |
+| Kriterium        | Prüfung                   | Erfüllt wenn                                           |
+| ---------------- | ------------------------- | ------------------------------------------------------ |
+| Remote gesetzt   | `git remote -v`           | `origin` zeigt auf deine GitHub-URL                    |
+| Branch main      | `git branch`              | Aktiver Branch ist `main`                              |
 | Push erfolgreich | `git push -u origin main` | „Branch 'main' set up to track …“ bzw. kein „rejected“ |
-| GitHub-Inhalt | Browser: Repo öffnen | Mindestens `.gitignore` und Konzept-Datei(en) sichtbar |
+| GitHub-Inhalt    | Browser: Repo öffnen      | Mindestens `.gitignore` und Konzept-Datei(en) sichtbar |
 
 ---
 
