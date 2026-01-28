@@ -1,11 +1,20 @@
-# Konzept 2.0 / Phase 1.5: docker-compose nur mit Backend-Service
-# Frontend-Service kommt erst in Phase 3.6 hinzu
+# Konzept 2.0 / Phase 3.6: docker-compose mit Backend und Frontend
 
 services:
   backend:
     build: ./backend
     ports:
       - "8000:8000"
-    # Optional: Volume für SQLite-DB (später in Phase 2)
+    # Optional: Volume für SQLite-DB (später in Phase 8)
     # volumes:
     #   - ./backend/data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "80:80"
+    depends_on:
+      - backend

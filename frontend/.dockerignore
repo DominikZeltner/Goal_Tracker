@@ -1,0 +1,39 @@
+# Dependencies (werden im Container installiert)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build-Ausgabe (wird im Container erstellt)
+dist
+build
+
+# Entwicklungsumgebung
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Dokumentation
+README.md
+*.md
+
+# Tests
+coverage
+.nyc_output
+
+# Sonstiges
+*.log
+.cache

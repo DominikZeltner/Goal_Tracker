@@ -13,13 +13,15 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Goal Tracker API")
 
-# Konzept 1.2 / 1.4: FastAPI-Backend, REST-API (Start simpel, später CRUD).
-# Für lokale Entwicklung mit Vite (5173) reicht oft:
-#   allow_origins=["http://localhost:5173"]
-# Für maximale Offenheit (z. B. in frühem Prototyping) ist "*" ok.
+# Konzept 1.2 / 1.4 / Phase 3.6: FastAPI-Backend, REST-API.
+# CORS für lokale Entwicklung (Vite Dev-Server auf 5173) und Docker (Frontend auf 80)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",  # Vite Dev-Server
+        "http://localhost",       # Docker Frontend (Port 80)
+        "http://localhost:80",    # Docker Frontend (explizit)
+    ],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
