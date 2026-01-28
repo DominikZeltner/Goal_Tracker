@@ -1,1 +1,21 @@
-# Docker Check
+# .github/workflows/docker-check.yml
+name: Docker Check
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build containers
+        run: docker compose build
+      - name: Start and health-check (optional)
+        run: |
+          docker compose up -d
+          sleep 10
+          curl -sf http://localhost:8000/health || true
+          docker compose down
+        continue-on-error: true   # wenn Backend noch kein /health hat
