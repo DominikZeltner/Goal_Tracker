@@ -10,9 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check compose file
+        id: compose
+        shell: bash
+        run: |
+          if [[ -f "docker-compose.yml" || -f "docker-compose.yaml" || -f "compose.yml" || -f "compose.yaml" ]]; then
+            echo "has_compose=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_compose=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build containers
+        if: steps.compose.outputs.has_compose == 'true'
         run: docker compose build
       - name: Start and health-check (optional)
+        if: steps.compose.outputs.has_compose == 'true'
         run: |
           docker compose up -d
           sleep 10
