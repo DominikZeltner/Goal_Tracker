@@ -32,7 +32,7 @@ const STATUS_BORDER_COLORS = {
 };
 
 // Custom Node-Komponente
-function GoalNode({ data }: { data: any }) {
+function GoalNode({ data }: { data: { label: string; status: string; dates?: string } }) {
   return (
     <div
       className="px-4 py-3 rounded-lg shadow-md cursor-pointer transition-all hover:shadow-lg"
@@ -144,9 +144,10 @@ export default function Tree() {
         const { nodes, edges } = buildNodesAndEdges(data);
         setNodes(nodes);
         setEdges(edges);
-      } catch (err: any) {
-        console.error('Fehler beim Laden der Ziele:', err);
-        setError(err.message || 'Fehler beim Laden der Ziele');
+      } catch (err) {
+        const error = err as Error;
+        console.error('Fehler beim Laden der Ziele:', error);
+        setError(error.message || 'Fehler beim Laden der Ziele');
       } finally {
         setLoading(false);
       }
@@ -246,7 +247,7 @@ export default function Tree() {
   );
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white rounded-lg shadow p-6" role="region" aria-label="Zielbaum-Ansicht">
       <div className="mb-4">
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">Zielbaum</h2>
         <div className="flex gap-4 text-sm">

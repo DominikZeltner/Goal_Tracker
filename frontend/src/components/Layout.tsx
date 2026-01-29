@@ -6,12 +6,12 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-sm border-b" role="banner">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold text-gray-900">Goal Tracker</h1>
             {/* Navigation */}
-            <nav className="flex space-x-4">
+            <nav className="flex space-x-4" role="navigation" aria-label="Hauptnavigation">
               <Link
                 to="/"
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -38,7 +38,7 @@ export default function Layout() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main">
         <Outlet />
       </main>
     </div>

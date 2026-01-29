@@ -1,6 +1,5 @@
 # Konzept 1.4 / Phase 2.2: Pydantic-Modelle für Ziel
 from datetime import date
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -9,11 +8,11 @@ class ZielCreate(BaseModel):
     """Schema zum Erstellen eines Ziels (parent_id optional)."""
 
     titel: str
-    beschreibung: Optional[str] = None
+    beschreibung: str | None = None
     start_datum: date
     end_datum: date
     status: str  # z. B. "offen", "in Arbeit", "erledigt"
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
 
 
 class ZielRead(BaseModel):
@@ -21,11 +20,11 @@ class ZielRead(BaseModel):
 
     id: int
     titel: str
-    beschreibung: Optional[str] = None
+    beschreibung: str | None = None
     start_datum: date
     end_datum: date
     status: str
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
 
     class Config:
         from_attributes = True  # Pydantic v2: für SQLAlchemy-Modelle
@@ -36,11 +35,11 @@ class ZielReadWithChildren(BaseModel):
 
     id: int
     titel: str
-    beschreibung: Optional[str] = None
+    beschreibung: str | None = None
     start_datum: date
     end_datum: date
     status: str
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
     children: list["ZielReadWithChildren"] = []
 
     class Config:

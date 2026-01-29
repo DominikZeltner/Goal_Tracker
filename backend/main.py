@@ -1,11 +1,10 @@
-from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models import Base, SessionLocal, engine, Ziel
+from models import Base, SessionLocal, Ziel, engine
 from schemas import ZielCreate, ZielRead, ZielReadWithChildren
 
 # Konzept Phase 2.3: Tabellen beim App-Start anlegen
@@ -57,7 +56,7 @@ def create_ziel(ziel: ZielCreate, db: Session = Depends(get_db)) -> ZielRead:
 
 @app.get("/ziele")
 def get_ziele(
-    tree: Optional[int] = Query(None, description="1 für hierarchische Struktur"),
+    tree: int | None = Query(None, description="1 für hierarchische Struktur"),
     db: Session = Depends(get_db),
 ):
     """Ziele laden (flach oder hierarchisch)."""

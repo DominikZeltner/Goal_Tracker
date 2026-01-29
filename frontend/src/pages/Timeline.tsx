@@ -32,7 +32,14 @@ export default function Timeline() {
         if (!timelineRef.current) return;
 
         // Daten für vis-timeline mappen
-        const items = new DataSet(
+        const items = new DataSet<{
+          id: number;
+          content: string;
+          start: string;
+          end: string;
+          style: string;
+          title: string;
+        }>(
           data.map((ziel) => ({
             id: ziel.id,
             content: ziel.titel,
@@ -59,10 +66,7 @@ export default function Timeline() {
             remove: false,      // Löschen nicht erlauben
             add: false,         // Hinzufügen nicht erlauben
           },
-          onMoving: (item: any, callback: any) => {
-            // Feedback während des Verschiebens
-            callback(item);
-          },
+          // onMoving für Feedback während des Drag entfernt - nicht typkompatibel
         };
 
         // Timeline erstellen oder aktualisieren
@@ -94,8 +98,8 @@ export default function Timeline() {
               if (!originalGoal) continue;
               
               // Prüfe ob sich die Daten geändert haben
-              const itemStart = new Date(item.start as any).toISOString().split('T')[0];
-              const itemEnd = new Date(item.end as any).toISOString().split('T')[0];
+              const itemStart = new Date(item.start as string | Date).toISOString().split('T')[0];
+              const itemEnd = new Date(item.end as string | Date).toISOString().split('T')[0];
               
               if (itemStart !== originalGoal.start_datum || itemEnd !== originalGoal.end_datum) {
                 console.log('Item verschoben:', item.id, 'von', originalGoal.start_datum, '-', originalGoal.end_datum, 'zu', itemStart, '-', itemEnd);
@@ -125,9 +129,10 @@ export default function Timeline() {
             }
           });
         }
-      } catch (err: any) {
-        console.error('Fehler beim Laden der Ziele:', err);
-        setError(err.message || 'Fehler beim Laden der Ziele');
+      } catch (err) {
+        const error = err as Error;
+        console.error('Fehler beim Laden der Ziele:', error);
+        setError(error.message || 'Fehler beim Laden der Ziele');
       } finally {
         setLoading(false);
       }
@@ -145,7 +150,7 @@ export default function Timeline() {
   }, [navigate]);
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white rounded-lg shadow p-6" role="region" aria-label="Timeline-Ansicht">
       <div className="mb-4">
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">Timeline</h2>
         <div className="flex justify-between items-start mb-2">

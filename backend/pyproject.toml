@@ -1,0 +1,39 @@
+[tool.ruff]
+# Python-Version
+target-version = "py312"
+
+# Zeilenlänge
+line-length = 100
+
+# Ausschließen
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    "*.pyc",
+]
+
+[tool.ruff.lint]
+# Aktivierte Rules
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+]
+
+# Ignorierte Rules
+ignore = [
+    "E501",  # Line too long (wird durch line-length geregelt)
+    "B008",  # FastAPI Depends() in function arguments ist ok
+]
+
+[tool.ruff.format]
+# Formatierungs-Optionen (ähnlich wie Black)
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

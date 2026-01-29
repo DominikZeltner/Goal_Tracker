@@ -29,9 +29,10 @@ export default function Detail() {
       const data = await getGoalWithChildren(parseInt(id));
       setGoal(data);
       console.log('Ziel mit Unterzielen geladen:', data);
-    } catch (err: any) {
-      console.error('Fehler beim Laden des Ziels:', err);
-      setError(err.message || 'Fehler beim Laden des Ziels');
+    } catch (err) {
+      const error = err as Error;
+      console.error('Fehler beim Laden des Ziels:', error);
+      setError(error.message || 'Fehler beim Laden des Ziels');
     } finally {
       setLoading(false);
     }
@@ -39,6 +40,7 @@ export default function Detail() {
 
   useEffect(() => {
     loadGoal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Status auf "erledigt" setzen (Abhaken)
@@ -51,9 +53,10 @@ export default function Detail() {
       const updatedGoal = await updateStatus(parseInt(id), 'erledigt');
       setGoal(updatedGoal);
       console.log('Status aktualisiert:', updatedGoal);
-    } catch (err: any) {
-      console.error('Fehler beim Aktualisieren des Status:', err);
-      setError(err.message || 'Fehler beim Aktualisieren des Status');
+    } catch (err) {
+      const error = err as Error;
+      console.error('Fehler beim Aktualisieren des Status:', error);
+      setError(error.message || 'Fehler beim Aktualisieren des Status');
     } finally {
       setUpdating(false);
     }
@@ -69,9 +72,10 @@ export default function Detail() {
       const updatedGoal = await updateStatus(parseInt(id), newStatus);
       setGoal(updatedGoal);
       console.log('Status aktualisiert:', updatedGoal);
-    } catch (err: any) {
-      console.error('Fehler beim Aktualisieren des Status:', err);
-      setError(err.message || 'Fehler beim Aktualisieren des Status');
+    } catch (err) {
+      const error = err as Error;
+      console.error('Fehler beim Aktualisieren des Status:', error);
+      setError(error.message || 'Fehler beim Aktualisieren des Status');
     } finally {
       setUpdating(false);
     }
@@ -181,13 +185,14 @@ export default function Detail() {
       {goal.children && goal.children.length > 0 && (
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-3">Unterziele</h3>
-          <div className="space-y-2">
+          <ul className="space-y-2" role="list" aria-label="Liste der Unterziele">
             {goal.children.map((child) => (
-              <Link
-                key={child.id}
-                to={`/ziel/${child.id}`}
-                className="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-              >
+              <li key={child.id}>
+                <Link
+                  to={`/ziel/${child.id}`}
+                  className="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                  aria-label={`Unterziel: ${child.titel}`}
+                >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900">{child.titel}</h4>
@@ -209,9 +214,10 @@ export default function Detail() {
                     </span>
                   </div>
                 </div>
-              </Link>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
 
@@ -238,6 +244,8 @@ export default function Detail() {
               onClick={handleComplete}
               disabled={updating}
               className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              aria-label="Ziel als erledigt markieren"
+              aria-disabled={updating}
             >
               {updating ? (
                 <>⏳ Aktualisiere...</>
@@ -253,6 +261,7 @@ export default function Detail() {
               onClick={() => handleStatusChange('in Arbeit')}
               disabled={updating}
               className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+              aria-label="Ziel in Arbeit nehmen"
             >
               In Arbeit nehmen
             </button>

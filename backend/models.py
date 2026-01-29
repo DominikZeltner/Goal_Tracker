@@ -1,7 +1,6 @@
 # Konzept 1.3 / Phase 2.1: SQLAlchemy-Modell für Ziel
 import os
 from datetime import date
-from typing import Optional
 
 from sqlalchemy import Date, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
@@ -25,11 +24,11 @@ class Ziel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     titel: Mapped[str] = mapped_column(String, nullable=False)
-    beschreibung: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    beschreibung: Mapped[str | None] = mapped_column(String, nullable=True)
     start_datum: Mapped[date] = mapped_column(Date, nullable=False)
     end_datum: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False)  # z. B. "offen", "in Arbeit", "erledigt"
-    parent_id: Mapped[Optional[int]] = mapped_column(
+    parent_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("ziel.id"), nullable=True
     )
 
