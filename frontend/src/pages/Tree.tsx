@@ -9,9 +9,13 @@ import {
   useEdgesState,
   BackgroundVariant,
   NodeTypes,
+  Connection,
+  addEdge,
+  EdgeChange,
+  applyEdgeChanges,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { getGoals, ZielWithChildren } from '../api/goals';
+import { getGoals, updateGoal, ZielWithChildren } from '../api/goals';
 import { useNavigate } from 'react-router-dom';
 
 // Farben nach Status
@@ -54,8 +58,9 @@ const nodeTypes: NodeTypes = {
 
 export default function Tree() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [edges, setEdges] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -159,6 +164,87 @@ export default function Tree() {
     [navigate]
   );
 
+  // Drag & Drop Handler für Kanten (parent_id ändern)
+  const onConnect = useCallback(
+    async (connection: Connection) => {
+      if (!connection.source || !connection.target) return;
+
+      const targetGoalId = parseInt(connection.target.replace('goal-', ''));
+      const newParentId = parseInt(connection.source.replace('goal-', ''));
+
+      setUpdating(true);
+      try {
+        // Update parent_id via API
+        await updateGoal(targetGoalId, {
+          parent_id: newParentId,
+        });
+
+        console.log(`Ziel ${targetGoalId} wurde zu Unterziel von ${newParentId}`);
+
+        // Edge hinzufügen
+        setEdges((eds) => addEdge(connection, eds));
+
+        // Erfolgs-Meldung
+        alert(`Ziel wurde erfolgreich verschoben. Seite wird neu geladen.`);
+        
+        // Seite neu laden, um Hierarchie neu zu berechnen
+        window.location.reload();
+      } catch (error) {
+        console.error('Fehler beim Aktualisieren der Hierarchie:', error);
+        alert('Fehler beim Verschieben des Ziels. Bitte versuchen Sie es erneut.');
+      } finally {
+        setUpdating(false);
+      }
+    },
+    [setEdges]
+  );
+
+  // Handler für Kanten-Löschung (parent_id auf null setzen)
+  const onEdgesChange = useCallback(
+    async (changes: EdgeChange[]) => {
+      // Prüfe ob eine Kante gelöscht wurde
+      const removedEdge = changes.find((change) => change.type === 'remove');
+      
+      if (removedEdge && 'id' in removedEdge) {
+        const edgeId = removedEdge.id;
+        const edge = edges.find((e) => e.id === edgeId);
+        
+        if (edge) {
+          const targetGoalId = parseInt(edge.target.replace('goal-', ''));
+          
+          setUpdating(true);
+          try {
+            // parent_id entfernen (Backend erwartet undefined, nicht null)
+            await updateGoal(targetGoalId, {
+              parent_id: undefined,
+            });
+
+            console.log(`Ziel ${targetGoalId} ist jetzt ein Hauptziel`);
+
+            // Edge entfernen
+            setEdges((eds) => applyEdgeChanges(changes, eds));
+
+            // Erfolgs-Meldung
+            alert(`Ziel wurde erfolgreich zum Hauptziel gemacht. Seite wird neu geladen.`);
+            
+            // Seite neu laden
+            window.location.reload();
+          } catch (error) {
+            console.error('Fehler beim Aktualisieren der Hierarchie:', error);
+            alert('Fehler beim Ändern der Hierarchie. Bitte versuchen Sie es erneut.');
+          } finally {
+            setUpdating(false);
+          }
+          return;
+        }
+      }
+
+      // Standard Edge-Changes anwenden
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+    },
+    [edges, setEdges]
+  );
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="mb-4">
@@ -207,22 +293,34 @@ export default function Tree() {
       )}
 
       {!loading && !error && (
-        <div className="border border-gray-200 rounded" style={{ height: '600px' }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={onNodeClick}
-            nodeTypes={nodeTypes}
-            fitView
-            minZoom={0.1}
-            maxZoom={2}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-            <Controls />
-          </ReactFlow>
-        </div>
+        <>
+          {updating && (
+            <div className="mb-4 bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-800">
+              ⏳ Aktualisiere Hierarchie...
+            </div>
+          )}
+          <div className="mb-2 text-sm text-gray-600 italic">
+            💡 Tipp: Verbinde Knoten, um Hierarchie zu ändern (ziehe von Parent zu Child)
+          </div>
+          <div className="border border-gray-200 rounded" style={{ height: '600px' }}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              nodeTypes={nodeTypes}
+              fitView
+              minZoom={0.1}
+              maxZoom={2}
+              deleteKeyCode="Delete"
+            >
+              <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+              <Controls />
+            </ReactFlow>
+          </div>
+        </>
       )}
     </div>
   );

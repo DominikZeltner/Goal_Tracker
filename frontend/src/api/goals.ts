@@ -57,6 +57,31 @@ export const getGoal = async (id: number): Promise<Ziel> => {
   return response.data;
 };
 
+// Lädt ein Ziel mit allen Unterzielen (hierarchisch)
+export const getGoalWithChildren = async (id: number): Promise<ZielWithChildren> => {
+  // Lade alle Ziele hierarchisch
+  const allGoals = (await getGoals(true)) as ZielWithChildren[];
+  
+  // Finde das gewünschte Ziel in der Hierarchie
+  const findGoal = (goals: ZielWithChildren[], targetId: number): ZielWithChildren | null => {
+    for (const goal of goals) {
+      if (goal.id === targetId) return goal;
+      if (goal.children) {
+        const found = findGoal(goal.children, targetId);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  
+  const goal = findGoal(allGoals, id);
+  if (!goal) {
+    throw new Error('Ziel nicht gefunden');
+  }
+  
+  return goal;
+};
+
 export const createGoal = async (data: ZielCreate): Promise<Ziel> => {
   const response = await apiClient.post('/ziele', data);
   return response.data;

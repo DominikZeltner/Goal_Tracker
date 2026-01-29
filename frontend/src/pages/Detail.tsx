@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getGoal, updateStatus, Ziel } from '../api/goals';
+import { getGoalWithChildren, updateStatus, ZielWithChildren } from '../api/goals';
+import ProgressBar from '../components/ProgressBar';
+import { calculateProgress, countCompletedChildren } from '../utils/progress';
 
 // Status-Farben
 const STATUS_COLORS = {
@@ -12,21 +14,21 @@ const STATUS_COLORS = {
 export default function Detail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [goal, setGoal] = useState<Ziel | null>(null);
+  const [goal, setGoal] = useState<ZielWithChildren | null>(null);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Ziel laden
+  // Ziel laden (mit Unterzielen für Fortschritts-Berechnung)
   const loadGoal = async () => {
     if (!id) return;
 
     setLoading(true);
     setError(null);
     try {
-      const data = await getGoal(parseInt(id));
+      const data = await getGoalWithChildren(parseInt(id));
       setGoal(data);
-      console.log('Ziel geladen:', data);
+      console.log('Ziel mit Unterzielen geladen:', data);
     } catch (err: any) {
       console.error('Fehler beim Laden des Ziels:', err);
       setError(err.message || 'Fehler beim Laden des Ziels');
@@ -164,6 +166,54 @@ export default function Detail() {
           <p className="text-gray-700">{goal.end_datum}</p>
         </div>
       </div>
+
+      {/* Fortschritt */}
+      {goal.children && goal.children.length > 0 && (
+        <div className="mb-6">
+          <ProgressBar progress={calculateProgress(goal)} />
+          <p className="text-sm text-gray-600 mt-2">
+            {countCompletedChildren(goal).completed} von {countCompletedChildren(goal).total} Unterzielen erledigt
+          </p>
+        </div>
+      )}
+
+      {/* Unterziele */}
+      {goal.children && goal.children.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">Unterziele</h3>
+          <div className="space-y-2">
+            {goal.children.map((child) => (
+              <Link
+                key={child.id}
+                to={`/ziel/${child.id}`}
+                className="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{child.titel}</h4>
+                    {child.beschreibung && (
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{child.beschreibung}</p>
+                    )}
+                  </div>
+                  <div className="ml-4">
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                        child.status === 'erledigt'
+                          ? 'bg-green-100 text-green-800'
+                          : child.status === 'in Arbeit'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {child.status}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Übergeordnetes Ziel */}
       {goal.parent_id && (

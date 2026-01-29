@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Timeline as VisTimeline } from 'vis-timeline/standalone';
 import { DataSet } from 'vis-data';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
-import { getGoals, Ziel } from '../api/goals';
+import { getGoals, updateGoal, Ziel } from '../api/goals';
 import { useNavigate } from 'react-router-dom';
 
 // Farben nach Status
@@ -54,7 +54,15 @@ export default function Timeline() {
           zoomMax: 1000 * 60 * 60 * 24 * 365 * 2, // Max: 2 Jahre
           orientation: 'top',
           stack: true,
-          editable: false,
+          editable: {
+            updateTime: true,  // Zeitraum verschieben erlauben
+            remove: false,      // Löschen nicht erlauben
+            add: false,         // Hinzufügen nicht erlauben
+          },
+          onMoving: (item: any, callback: any) => {
+            // Feedback während des Verschiebens
+            callback(item);
+          },
         };
 
         // Timeline erstellen oder aktualisieren
@@ -72,6 +80,48 @@ export default function Timeline() {
             if (properties.items.length > 0) {
               const selectedId = properties.items[0];
               navigate(`/ziel/${selectedId}`);
+            }
+          });
+
+          // Drag & Drop Handler - wird aufgerufen wenn Item verschoben wurde
+          timelineInstance.current.on('changed', async () => {
+            const changedItems = items.get();
+            
+            // Prüfe welche Items geändert wurden
+            for (const item of changedItems) {
+              const originalGoal = data.find((g) => g.id === item.id);
+              
+              if (!originalGoal) continue;
+              
+              // Prüfe ob sich die Daten geändert haben
+              const itemStart = new Date(item.start as any).toISOString().split('T')[0];
+              const itemEnd = new Date(item.end as any).toISOString().split('T')[0];
+              
+              if (itemStart !== originalGoal.start_datum || itemEnd !== originalGoal.end_datum) {
+                console.log('Item verschoben:', item.id, 'von', originalGoal.start_datum, '-', originalGoal.end_datum, 'zu', itemStart, '-', itemEnd);
+                
+                try {
+                  // Update-Request an API senden
+                  await updateGoal(item.id as number, {
+                    start_datum: itemStart,
+                    end_datum: itemEnd,
+                  });
+                  
+                  console.log('Ziel-Zeitraum erfolgreich aktualisiert');
+                  
+                  // Originalziel aktualisieren für nächste Änderung
+                  originalGoal.start_datum = itemStart;
+                  originalGoal.end_datum = itemEnd;
+                } catch (error) {
+                  console.error('Fehler beim Aktualisieren des Zeitraums:', error);
+                  // Bei Fehler: Item zurücksetzen
+                  items.update({
+                    id: item.id,
+                    start: originalGoal.start_datum,
+                    end: originalGoal.end_datum,
+                  });
+                }
+              }
             }
           });
         }
@@ -98,18 +148,23 @@ export default function Timeline() {
     <div className="bg-white rounded-lg shadow p-6">
       <div className="mb-4">
         <h2 className="text-2xl font-semibold text-gray-800 mb-2">Timeline</h2>
-        <div className="flex gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: STATUS_COLORS.offen }}></span>
-            <span>Offen</span>
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded" style={{ backgroundColor: STATUS_COLORS.offen }}></span>
+              <span>Offen</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded" style={{ backgroundColor: STATUS_COLORS['in Arbeit'] }}></span>
+              <span>In Arbeit</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded" style={{ backgroundColor: STATUS_COLORS.erledigt }}></span>
+              <span>Erledigt</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: STATUS_COLORS['in Arbeit'] }}></span>
-            <span>In Arbeit</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: STATUS_COLORS.erledigt }}></span>
-            <span>Erledigt</span>
+          <div className="text-sm text-gray-600 italic">
+            💡 Tipp: Ziehe Items, um Zeitraum zu ändern
           </div>
         </div>
       </div>
