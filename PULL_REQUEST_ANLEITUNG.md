@@ -19,7 +19,7 @@ feat: vollständiges Frontend mit Timeline, Zielbaum und Production-Deployment
 ```
 
 **Beschreibung:**
-Die Beschreibung findest du in der Datei `pr_body.md` - kopiere den gesamten Inhalt.
+Die Beschreibung findest du in der Datei `PR_DESCRIPTION.md` - kopiere den gesamten Inhalt (ab "## Zusammenfassung").
 
 ### 3. Pull Request erstellen
 
