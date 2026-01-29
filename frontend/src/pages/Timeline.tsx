@@ -3,7 +3,7 @@ import { Timeline as VisTimeline } from 'vis-timeline/standalone';
 import { DataSet } from 'vis-data';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { getGoals, updateGoal, Ziel } from '../api/goals';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 // Farben nach Status
 const STATUS_COLORS = {
@@ -17,6 +17,7 @@ export default function Timeline() {
   const timelineInstance = useRef<VisTimeline | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [goalsData, setGoalsData] = useState<Ziel[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function Timeline() {
         // Ziele von API laden
         const data = await getGoals(false) as Ziel[];
         console.log('Ziele geladen:', data);
+        setGoalsData(data);
 
         if (!timelineRef.current) return;
 
@@ -148,6 +150,27 @@ export default function Timeline() {
       }
     };
   }, [navigate]);
+
+  // Leerer Zustand - keine Ziele vorhanden
+  if (!loading && !error && goalsData.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-12 text-center">
+        <div className="max-w-md mx-auto">
+          <div className="text-6xl mb-4">📅</div>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Keine Ziele vorhanden</h2>
+          <p className="text-gray-600 mb-6">
+            Erstelle dein erstes Ziel, um es auf der Timeline zu sehen!
+          </p>
+          <Link
+            to="/ziel/neu"
+            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            ✨ Erstes Ziel erstellen
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-6" role="region" aria-label="Timeline-Ansicht">

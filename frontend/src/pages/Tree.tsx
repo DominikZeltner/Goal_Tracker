@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { getGoals, updateGoal, ZielWithChildren } from '../api/goals';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 // Farben nach Status
 const STATUS_COLORS = {
@@ -245,6 +245,27 @@ export default function Tree() {
     },
     [edges, setEdges]
   );
+
+  // Leerer Zustand - keine Ziele vorhanden
+  if (!loading && !error && nodes.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-12 text-center">
+        <div className="max-w-md mx-auto">
+          <div className="text-6xl mb-4">🌳</div>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Keine Ziele vorhanden</h2>
+          <p className="text-gray-600 mb-6">
+            Erstelle dein erstes Ziel, um es im Zielbaum zu visualisieren!
+          </p>
+          <Link
+            to="/ziel/neu"
+            className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            ✨ Erstes Ziel erstellen
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-6" role="region" aria-label="Zielbaum-Ansicht">
