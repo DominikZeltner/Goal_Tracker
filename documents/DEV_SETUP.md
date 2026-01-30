@@ -45,53 +45,10 @@ docker compose -f docker-compose.dev.yml up
 
 ---
 
-## 📋 Alle Befehle
+## 📋 Befehle (zentral)
 
-### Server starten
-
-```bash
-# Im Vordergrund (mit Logs)
-docker compose -f docker-compose.dev.yml up
-
-# Im Hintergrund
-docker compose -f docker-compose.dev.yml up -d
-```
-
-### Server stoppen
-
-```bash
-# Strg + C (wenn im Vordergrund)
-
-# Oder:
-docker compose -f docker-compose.dev.yml down
-```
-
-### Logs anzeigen
-
-```bash
-# Alle Logs
-docker compose -f docker-compose.dev.yml logs -f
-
-# Nur Frontend
-docker compose -f docker-compose.dev.yml logs -f frontend
-
-# Nur Backend
-docker compose -f docker-compose.dev.yml logs -f backend
-```
-
-### Neustart (wenn etwas hängt)
-
-```bash
-docker compose -f docker-compose.dev.yml restart
-```
-
-### Container komplett neu bauen (nur nötig wenn Dependencies geändert wurden)
-
-```bash
-docker compose -f docker-compose.dev.yml down
-docker compose -f docker-compose.dev.yml build --no-cache
-docker compose -f docker-compose.dev.yml up
-```
+Alle relevanten Docker- und Workflow-Befehle sind hier gesammelt:  
+[COMMANDS_CHEATSHEET.md](COMMANDS_CHEATSHEET.md)
 
 ---
 

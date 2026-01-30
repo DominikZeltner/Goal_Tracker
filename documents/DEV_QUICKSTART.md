@@ -104,4 +104,6 @@ docker compose -f docker-compose.dev.yml up
 
 ---
 
-**Weitere Details:** Siehe [DEV_SETUP.md](DEV_SETUP.md)
+**Weitere Details:**  
+- [DEV_SETUP.md](DEV_SETUP.md)  
+- [COMMANDS_CHEATSHEET.md](COMMANDS_CHEATSHEET.md)

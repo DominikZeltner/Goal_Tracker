@@ -2,6 +2,8 @@
 
 Einfache Scripts zum Sichern und Wiederherstellen deiner Goal-Tracker Datenbank.
 
+**Hinweis:** Diese Datei ist die zentrale Quelle für Backup/Restore.
+
 ---
 
 ## 🚀 Schnellstart
@@ -73,9 +75,9 @@ Einfache Scripts zum Sichern und Wiederherstellen deiner Goal-Tracker Datenbank.
 ```
 📂 Verfügbare Backups:
 
-[1] database_backup_2026-01-30_18-30-45.db - 30.01.2026 18:30 - 28.5 KB
-[2] database_backup_2026-01-29_20-15-30.db - 29.01.2026 20:15 - 25.2 KB
-[3] database_backup_2026-01-28_19-00-00.db - 28.01.2026 19:00 - 22.8 KB
+[1] database_backup_2026-01-30_18-30-45.db - 2026-01-30 18:30 - 28.5 KB
+[2] database_backup_2026-01-29_20-15-30.db - 2026-01-29 20:15 - 25.2 KB
+[3] database_backup_2026-01-28_19-00-00.db - 2026-01-28 19:00 - 22.8 KB
 
 💡 Verwendung: .\restore_database.ps1 -BackupFile '.\backups\database_backup_YYYY-MM-DD_HH-mm-ss.db'
 💡 Oder wähle eine Nummer:

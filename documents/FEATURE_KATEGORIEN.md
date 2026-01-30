@@ -294,6 +294,7 @@ Kategorie:
 │ - Privat                   │
 │ - Gesundheit               │
 │ - Finanzen                 │
+│ - Bildung                  │
 │ ...                        │
 │ - Eigene Kategorie... ✏️   │
 └────────────────────────────┘

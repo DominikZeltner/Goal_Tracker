@@ -242,42 +242,8 @@ docker compose -f docker-compose.prod.yml up -d
 
 ## 🗄️ Datenbank-Wartung
 
-### Backup erstellen
-
-```bash
-# Manuell
-docker compose exec backend cat /app/data/database.db > backup-$(date +%Y%m%d).db
-
-# Automatisches Backup-Script
-cat > backup.sh << 'EOF'
-#!/bin/bash
-BACKUP_DIR="/opt/backups/goaltracker"
-mkdir -p $BACKUP_DIR
-DATE=$(date +%Y%m%d_%H%M%S)
-docker compose exec -T backend cat /app/data/database.db > $BACKUP_DIR/backup_$DATE.db
-find $BACKUP_DIR -name "backup_*.db" -mtime +30 -delete
-EOF
-chmod +x backup.sh
-
-# Cronjob für tägliches Backup (2 Uhr nachts)
-(crontab -l 2>/dev/null; echo "0 2 * * * /opt/Goal_Tracker/backup.sh") | crontab -
-```
-
-### Backup wiederherstellen
-
-```bash
-docker compose exec -T backend sh -c 'cat > /app/data/database.db' < backup-20260128.db
-docker compose restart backend
-```
-
-### Datenbank-Migration
-
-```bash
-# Neue SQLAlchemy-Modelle werden automatisch erstellt
-# Bei Schema-Änderungen: Backup erstellen, dann Container neu starten
-docker compose down
-docker compose up -d
-```
+Backup/Restore und Best Practices sind zentral dokumentiert:  
+Siehe [BACKUP_README.md](BACKUP_README.md)
 
 ## 📊 Monitoring & Health Checks
 
@@ -404,4 +370,4 @@ Bei Problemen:
 
 ---
 
-**Letzte Aktualisierung**: 2026-01-29
+**Letzte Aktualisierung**: 2026-01-30

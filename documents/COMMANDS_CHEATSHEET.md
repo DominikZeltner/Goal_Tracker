@@ -2,6 +2,8 @@
 
 Alle wichtigen Befehle auf einen Blick!
 
+**Hinweis:** Diese Datei ist die zentrale Befehlsreferenz. Andere Dokumente verlinken hierher.
+
 ---
 
 ## 🔥 Die wichtigsten Befehle

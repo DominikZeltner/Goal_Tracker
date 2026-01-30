@@ -1,37 +1,32 @@
-# 🎉 Goal Tracker - Projekt abgeschlossen!
+# Goal Tracker - Projektstatus & nächste Schritte
 
-**Status:** ✅ **Vollständig implementiert und production-ready**
+**Status:** In Weiterentwicklung (Kernfunktionen implementiert)
 
 ---
 
-## 📋 Was wurde erreicht?
+## 📋 Aktueller Stand
 
-### ✅ Alle 8 Phasen abgeschlossen
+### ✅ Umgesetzte Meilensteine
 
-| Phase | Status | Beschreibung |
-|-------|--------|--------------|
-| 1-2 | ✅ | Backend-Grundgerüst (FastAPI, SQLAlchemy, SQLite) |
-| 3-4 | ✅ | Frontend-Setup & Layout (Vite, React, TypeScript, TailwindCSS) |
-| 5 | ✅ | Timeline & Zielbaum mit vis-timeline und @xyflow/react |
-| 6 | ✅ | Fortschritt & Drag & Drop |
-| 7 | ✅ | Linting, Accessibility, Code-Qualität |
-| 8 | ✅ | Production-Ready Deployment |
+- Backend-Grundgerüst (FastAPI, SQLAlchemy, SQLite)
+- Frontend-Setup & Layout (Vite, React, TypeScript, TailwindCSS)
+- Timeline & Zielbaum (vis-timeline, @xyflow/react)
+- CRUD inkl. Edit & Delete mit Unterzielen
+- Änderungshistorie & Kommentare
+- Linting, Code-Qualität, CI/CD
+- Production-Deployment mit Docker
 
-### 📁 Dokumentation erstellt
-
-- ✅ **README.md** - Projekt-Übersicht, Features, Schnellstart
-- ✅ **DEPLOYMENT.md** - Detaillierte Deployment-Szenarien
-- ✅ **CONTRIBUTING.md** - Entwickler-Richtlinien & Code-Stil
-- ✅ **PRODUCTION_DEPLOYMENT_CHECKLIST.md** - Schritt-für-Schritt Deployment-Guide
-- ✅ **QUICK_REFERENCE.md** - Häufige Befehle & Quick-Fixes
-- ✅ **PULL_REQUEST_ANLEITUNG.md** - Anleitung für PR-Erstellung
-- ✅ **PR_DESCRIPTION.md** - Fertige PR-Beschreibung
+**Roadmap & offene Themen:** [FEATURE_ROADMAP.md](../FEATURE_ROADMAP.md)
 
 ---
 
 ## 🚀 Nächste Schritte
 
-### Schritt 1: Pull Request erstellen
+### Schritt 1: Roadmap prüfen und Prioritäten festlegen
+
+Siehe [FEATURE_ROADMAP.md](../FEATURE_ROADMAP.md)
+
+### Schritt 2: Pull Request erstellen (falls noch offen)
 
 **Öffne im Browser:**
 ```
@@ -51,7 +46,7 @@ https://github.com/DominikZeltner/Goal_Tracker/compare/main...feat/frontend-setu
 
 ---
 
-### Schritt 2: Nach dem Merge - Branch aufräumen
+### Schritt 3: Nach dem Merge - Branch aufräumen
 
 ```bash
 cd "c:\_work\Goal Tracker"
@@ -69,7 +64,7 @@ git push origin --delete feat/frontend-setup
 
 ---
 
-### Schritt 3: Production-Deployment
+### Schritt 4: Production-Deployment
 
 **Vollständige Anleitung:** `PRODUCTION_DEPLOYMENT_CHECKLIST.md`
 
@@ -351,7 +346,7 @@ Du hast ein vollständiges, production-ready Projekt erstellt:
 
 ---
 
-**Erstellt:** 2026-01-29  
+**Erstellt:** 2026-01-30  
 **Version:** 1.0  
 **Projekt:** Goal Tracker  
 **Repository:** https://github.com/DominikZeltner/Goal_Tracker

@@ -1,8 +1,8 @@
 # Goal Tracker - Feature Roadmap
 
-## ✅ Status: Timeline funktioniert!
+## ✅ Status: Kernfunktionen implementiert
 
-Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
+Timeline, Zielbaum, CRUD, History und Kommentare sind umgesetzt. Die Roadmap bleibt aktiv.
 
 ---
 
@@ -10,15 +10,15 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
 
 ### Kategorie A: Basis-Funktionalität (KRITISCH)
 1. ✅ Timeline anzeigen → **ERLEDIGT**
-2. ⏳ Schweizer Datumsformat (DD.MM.YYYY)
-3. ⏳ Ziele bearbeiten (Edit-Modus)
-4. ⏳ Ziele löschen (mit Popup & Unterziel-Handling)
-5. ⏳ Unterziel-Datums-Synchronisation
+2. ✅ Schweizer Datumsformat (DD.MM.YYYY)
+3. ✅ Ziele bearbeiten (Edit-Modus)
+4. ✅ Ziele löschen (mit Unterziel-Handling)
+5. ✅ Unterziel-Datums-Synchronisation
 6. ⏳ Abhängigkeiten visualisieren (Timeline & Zielbaum)
 
 ### Kategorie B: Erweiterte Funktionen
-7. ⏳ Änderungshistory pro Ziel
-8. ⏳ Kommentare pro Ziel
+7. ✅ Änderungshistory pro Ziel
+8. ✅ Kommentare pro Ziel
 9. ⏳ Erfolgs-Animationen (Meilenstein/Pokal)
 10. ⏳ Numerische Ziele (KPI-Tracking)
 
@@ -42,11 +42,11 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
 ### Sprint 9.1: Datumsformat & Bearbeiten (1 Session)
 **Priorität:** HOCH  
 **Aufgaben:**
-- [ ] Schweizer Datumsformat implementieren (DD.MM.YYYY)
+- [x] Schweizer Datumsformat implementieren (DD.MM.YYYY)
   - Frontend: Datepicker mit `de-CH` Locale
   - API: Akzeptiert weiterhin ISO (YYYY-MM-DD)
   - Formatierung nur im Frontend
-- [ ] Edit-Modus für Ziele erstellen
+- [x] Edit-Modus für Ziele erstellen
   - Edit-Button auf Detail-Seite
   - Formular wie "Neues Ziel", aber vorausgefüllt
   - PUT Request an `/ziele/{id}`
@@ -67,16 +67,16 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
 ### Sprint 9.2: Löschen mit Unterziel-Handling (1 Session)
 **Priorität:** HOCH  
 **Aufgaben:**
-- [ ] Löschen-Button auf Detail-Seite
-- [ ] Confirmation-Modal/Dialog
+- [x] Löschen-Button auf Detail-Seite
+- [x] Confirmation-Modal/Dialog
   - "Ziel wirklich löschen?"
   - Falls Unterziele vorhanden:
     - Option A: "Nur dieses Ziel löschen (Unterziele bleiben)"
     - Option B: "Ziel und alle Unterziele löschen"
-- [ ] Backend: DELETE Endpoint erweitern
+- [x] Backend: DELETE Endpoint erweitern
   - Parameter: `delete_children=true/false`
   - Logik: Cascade Delete oder nur Parent löschen
-- [ ] Frontend: DELETE Request
+- [x] Frontend: DELETE Request
 
 **Technische Details:**
 - Modal-Library: `react-modal` oder eigene Implementierung
@@ -93,13 +93,13 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
 ### Sprint 9.3: Unterziel-Datums-Synchronisation (1 Session)
 **Priorität:** MITTEL  
 **Aufgaben:**
-- [ ] Backend-Logik:
+- [x] Backend-Logik:
   - Wenn Unterziel gespeichert/bearbeitet wird
   - Prüfe Parent-Ziel
   - Finde MIN(start_datum) und MAX(end_datum) aller Unterziele
   - Aktualisiere Parent automatisch
 - [ ] Frontend: Info-Hinweis
-  - "Hauptziel-Daten werden automatisch angepasst"
+  - "Hauptziel-Daten werden automatisch angepasst" (optional)
 
 **Technische Details:**
 - Trigger nach Unterziel-Update
@@ -138,7 +138,7 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
 ### Sprint 10.1: Änderungshistory (1 Session)
 **Priorität:** MITTEL  
 **Aufgaben:**
-- [ ] Backend: History-Tabelle
+- [x] Backend: History-Tabelle
   - Schema:
     ```sql
     CREATE TABLE ziel_history (
@@ -152,8 +152,8 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
       FOREIGN KEY (ziel_id) REFERENCES ziel(id)
     )
     ```
-- [ ] Backend: History bei jedem Update speichern
-- [ ] Frontend: History-Tab auf Detail-Seite
+- [x] Backend: History bei jedem Update speichern
+- [x] Frontend: History-Tab auf Detail-Seite
   - Chronologische Liste
   - Diff-Anzeige (optional)
 
@@ -167,7 +167,7 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
 ### Sprint 10.2: Kommentare (1-2 Sessions)
 **Priorität:** MITTEL  
 **Aufgaben:**
-- [ ] Backend: Comment-Tabelle
+- [x] Backend: Comment-Tabelle
   - Schema:
     ```sql
     CREATE TABLE kommentar (
@@ -179,11 +179,11 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
       FOREIGN KEY (ziel_id) REFERENCES ziel(id)
     )
     ```
-- [ ] Backend: CRUD für Kommentare
+- [x] Backend: CRUD für Kommentare
   - POST /ziele/{id}/kommentare
   - GET /ziele/{id}/kommentare
   - DELETE /kommentare/{id}
-- [ ] Frontend: Kommentar-Sektion
+- [x] Frontend: Kommentar-Sektion
   - Textarea + Submit-Button
   - Liste aller Kommentare (chronologisch)
   - Löschen-Button pro Kommentar
@@ -568,13 +568,13 @@ Ziel "Homeoffice-Setup" → Kategorien: "Beruf" UND "Finanzen"
 
 ---
 
-## 🚀 Empfohlener Start: Phase 9 - Sprint 9.1
+## 🚀 Empfohlener Start: Phase 9 - Sprint 9.4
 
 **Nächste Session:**
-1. Schweizer Datumsformat implementieren
-2. Edit-Modus für Ziele erstellen
+1. Abhängigkeiten visualisieren (Timeline & Zielbaum)
+2. Optional: Hinweis zur Parent-Datums-Synchronisation im UI
 
-**Grund:** Diese Features sind **essentiell** für die tägliche Nutzung und bauen auf der bestehenden Funktionalität auf.
+**Grund:** Visuelle Abhängigkeiten verbessern das Verständnis der Zielstruktur deutlich.
 
 ---
 
@@ -582,11 +582,10 @@ Ziel "Homeoffice-Setup" → Kategorien: "Beruf" UND "Finanzen"
 
 Bevor wir starten, bitte entscheide:
 
-1. **Datumsformat:** Bestätigung Schweizer Format (DD.MM.YYYY)?
-2. **LLM-Provider:** Welchen bevorzugst du? (OpenAI, Claude, Groq, Ollama)
-3. **Message-App:** Telegram OK? Oder andere Präferenz?
-4. **Priorisierung:** Stimmt die vorgeschlagene Reihenfolge?
+1. **LLM-Provider:** Welchen bevorzugst du? (OpenAI, Claude, Groq, Ollama)
+2. **Message-App:** Telegram OK? Oder andere Präferenz?
+3. **Priorisierung:** Stimmt die vorgeschlagene Reihenfolge?
 
 ---
 
-**Sollen wir mit Phase 9 - Sprint 9.1 starten?** (Schweizer Datumsformat + Edit-Modus)
+**Sollen wir mit Phase 9 - Sprint 9.4 starten?** (Abhängigkeiten visualisieren)

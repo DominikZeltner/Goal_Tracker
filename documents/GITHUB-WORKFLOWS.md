@@ -126,4 +126,3 @@ Die folgenden Optionen sind **Ideen**, die je nach Reifegrad/Bedarf ergänzt wer
 ## Hinweis zur Fehlersuche
 - Ein Workflow kann **syntaktisch korrekt** sein, aber **trotzdem fehlschlagen**, wenn Verzeichnisse/Lockfiles fehlen (z. B. `frontend/`) oder Docker Compose noch nicht lauffähig ist.
 - Für einen schrittweisen Aufbau ist es normal, dass man einzelne Schritte vorübergehend mit `continue-on-error` entschärft und später „hart“ macht.
-
