@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getGoal, updateStatus, Ziel } from '../api/goals';
+import { getGoalWithChildren, updateStatus, deleteGoal, ZielWithChildren } from '../api/goals';
+import ProgressBar from '../components/ProgressBar';
+import { calculateProgress, countCompletedChildren } from '../utils/progress';
+import { formatToSwiss, daysUntilText } from '../utils/dateFormat';
+import HistoryTab from '../components/HistoryTab';
+import CommentSection from '../components/CommentSection';
 
 // Status-Farben
 const STATUS_COLORS = {
@@ -12,24 +17,28 @@ const STATUS_COLORS = {
 export default function Detail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [goal, setGoal] = useState<Ziel | null>(null);
+  const [goal, setGoal] = useState<ZielWithChildren | null>(null);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
-  // Ziel laden
+  // Ziel laden (mit Unterzielen für Fortschritts-Berechnung)
   const loadGoal = async () => {
     if (!id) return;
 
     setLoading(true);
     setError(null);
     try {
-      const data = await getGoal(parseInt(id));
+      const data = await getGoalWithChildren(parseInt(id));
       setGoal(data);
-      console.log('Ziel geladen:', data);
-    } catch (err: any) {
-      console.error('Fehler beim Laden des Ziels:', err);
-      setError(err.message || 'Fehler beim Laden des Ziels');
+      console.log('Ziel mit Unterzielen geladen:', data);
+    } catch (err) {
+      const error = err as Error;
+      console.error('Fehler beim Laden des Ziels:', error);
+      setError(error.message || 'Fehler beim Laden des Ziels');
     } finally {
       setLoading(false);
     }
@@ -37,6 +46,7 @@ export default function Detail() {
 
   useEffect(() => {
     loadGoal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // Status auf "erledigt" setzen (Abhaken)
@@ -46,12 +56,14 @@ export default function Detail() {
     setUpdating(true);
     setError(null);
     try {
-      const updatedGoal = await updateStatus(parseInt(id), 'erledigt');
-      setGoal(updatedGoal);
-      console.log('Status aktualisiert:', updatedGoal);
-    } catch (err: any) {
-      console.error('Fehler beim Aktualisieren des Status:', err);
-      setError(err.message || 'Fehler beim Aktualisieren des Status');
+      await updateStatus(parseInt(id), 'erledigt');
+      console.log('Status aktualisiert auf: erledigt');
+      // Ziel neu laden, um alle Daten inkl. children zu erhalten
+      await loadGoal();
+    } catch (err) {
+      const error = err as Error;
+      console.error('Fehler beim Aktualisieren des Status:', error);
+      setError(error.message || 'Fehler beim Aktualisieren des Status');
     } finally {
       setUpdating(false);
     }
@@ -64,14 +76,37 @@ export default function Detail() {
     setUpdating(true);
     setError(null);
     try {
-      const updatedGoal = await updateStatus(parseInt(id), newStatus);
-      setGoal(updatedGoal);
-      console.log('Status aktualisiert:', updatedGoal);
-    } catch (err: any) {
-      console.error('Fehler beim Aktualisieren des Status:', err);
-      setError(err.message || 'Fehler beim Aktualisieren des Status');
+      await updateStatus(parseInt(id), newStatus);
+      console.log('Status aktualisiert auf:', newStatus);
+      // Ziel neu laden, um alle Daten inkl. children zu erhalten
+      await loadGoal();
+    } catch (err) {
+      const error = err as Error;
+      console.error('Fehler beim Aktualisieren des Status:', error);
+      setError(error.message || 'Fehler beim Aktualisieren des Status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Ziel löschen
+  const handleDelete = async (cascade: boolean) => {
+    if (!id) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteGoal(parseInt(id), cascade);
+      console.log(`Ziel ${id} gelöscht (cascade: ${cascade})`);
+      // Zur Timeline navigieren
+      navigate('/');
+    } catch (err) {
+      const error = err as Error;
+      console.error('Fehler beim Löschen des Ziels:', error);
+      setError(error.message || 'Fehler beim Löschen des Ziels');
+      setShowDeleteModal(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -123,29 +158,113 @@ export default function Detail() {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      {/* Header mit Zurück-Button */}
-      <div className="mb-6">
+      {/* Header-Zeile 1: Navigation-Buttons */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
+          >
+            ← Zurück
+          </button>
+          
+          <Link
+            to={`/ziel/${goal.id}/bearbeiten`}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
+            aria-label="Ziel bearbeiten"
+          >
+            ✏️ Bearbeiten
+          </Link>
+
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            disabled={updating || deleting}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            aria-label="Ziel löschen"
+          >
+            🗑️ Löschen
+          </button>
+        </div>
+
+        {/* History Toggle Button */}
         <button
-          onClick={() => navigate(-1)}
-          className="text-sm text-gray-600 hover:text-gray-900 mb-2 flex items-center gap-1"
-        >
-          ← Zurück
-        </button>
-        <h2 className="text-3xl font-bold text-gray-900">{goal.titel}</h2>
-      </div>
-
-      {/* Status-Badge */}
-      <div className="mb-6">
-        <span
-          className={`inline-block px-4 py-2 rounded-full text-sm font-medium border ${
-            STATUS_COLORS[goal.status] || STATUS_COLORS.offen
+          onClick={() => setShowHistory(!showHistory)}
+          className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1 ${
+            showHistory
+              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
           }`}
+          aria-label="History anzeigen/verbergen"
         >
-          {goal.status}
-        </span>
+          📜 History
+        </button>
       </div>
 
-      {/* Beschreibung */}
+      {/* Header-Zeile 2: Titel + Status + Status-Buttons */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h2 className="text-3xl font-bold text-gray-900 flex-1">{goal.titel}</h2>
+        
+        <div className="flex items-center gap-3">
+          {/* Status-Badge */}
+          <span
+            className={`inline-block px-4 py-2 rounded-full text-sm font-medium border ${
+              STATUS_COLORS[goal.status] || STATUS_COLORS.offen
+            }`}
+          >
+            {goal.status}
+          </span>
+
+          {/* Status-Wechsel Buttons */}
+          {goal.status !== 'erledigt' && (
+            <button
+              onClick={handleComplete}
+              disabled={updating}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              aria-label="Ziel als erledigt markieren"
+              aria-disabled={updating}
+            >
+              {updating ? '⏳ ...' : '✓ Erledigt'}
+            </button>
+          )}
+
+          {goal.status === 'offen' && (
+            <button
+              onClick={() => handleStatusChange('in Arbeit')}
+              disabled={updating}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+              aria-label="Ziel in Arbeit nehmen"
+            >
+              In Arbeit
+            </button>
+          )}
+
+          {goal.status === 'in Arbeit' && (
+            <button
+              onClick={() => handleStatusChange('offen')}
+              disabled={updating}
+              className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
+            >
+              Zu Offen
+            </button>
+          )}
+
+          {goal.status === 'erledigt' && (
+            <button
+              onClick={() => handleStatusChange('offen')}
+              disabled={updating}
+              className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
+            >
+              Wieder öffnen
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content: Splitscreen Layout */}
+      <div className="flex gap-6">
+        {/* Detail Content (Left) */}
+        <div className={`flex-1 ${showHistory ? 'max-w-[60%]' : ''}`}>
+          {/* Beschreibung */}
       {goal.beschreibung && (
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Beschreibung</h3>
@@ -157,13 +276,64 @@ export default function Detail() {
       <div className="mb-6 grid grid-cols-2 gap-4">
         <div>
           <h3 className="text-sm font-semibold text-gray-800 mb-1">Start</h3>
-          <p className="text-gray-700">{goal.start_datum}</p>
+          <p className="text-gray-700">{formatToSwiss(goal.start_datum)}</p>
         </div>
         <div>
           <h3 className="text-sm font-semibold text-gray-800 mb-1">Ende</h3>
-          <p className="text-gray-700">{goal.end_datum}</p>
+          <p className="text-gray-700">{formatToSwiss(goal.end_datum)}</p>
+          <p className="text-sm text-gray-500 mt-1">{daysUntilText(goal.end_datum)}</p>
         </div>
       </div>
+
+      {/* Fortschritt */}
+      {goal.children && goal.children.length > 0 && (
+        <div className="mb-6">
+          <ProgressBar progress={calculateProgress(goal)} />
+          <p className="text-sm text-gray-600 mt-2">
+            {countCompletedChildren(goal).completed} von {countCompletedChildren(goal).total} Unterzielen erledigt
+          </p>
+        </div>
+      )}
+
+      {/* Unterziele */}
+      {goal.children && goal.children.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">Unterziele</h3>
+          <ul className="space-y-2" role="list" aria-label="Liste der Unterziele">
+            {goal.children.map((child) => (
+              <li key={child.id}>
+                <Link
+                  to={`/ziel/${child.id}`}
+                  className="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                  aria-label={`Unterziel: ${child.titel}`}
+                >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{child.titel}</h4>
+                    {child.beschreibung && (
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{child.beschreibung}</p>
+                    )}
+                  </div>
+                  <div className="ml-4">
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                        child.status === 'erledigt'
+                          ? 'bg-green-100 text-green-800'
+                          : child.status === 'in Arbeit'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {child.status}
+                    </span>
+                  </div>
+                </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Übergeordnetes Ziel */}
       {goal.parent_id && (
@@ -178,64 +348,110 @@ export default function Detail() {
         </div>
       )}
 
-      {/* Aktionen */}
-      <div className="border-t pt-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Aktionen</h3>
-        <div className="flex flex-wrap gap-3">
-          {/* Abhaken-Button (nur wenn nicht erledigt) */}
-          {goal.status !== 'erledigt' && (
-            <button
-              onClick={handleComplete}
-              disabled={updating}
-              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-            >
-              {updating ? (
-                <>⏳ Aktualisiere...</>
-              ) : (
-                <>✓ Als erledigt markieren</>
-              )}
-            </button>
-          )}
-
-          {/* Status-Wechsel Buttons */}
-          {goal.status === 'offen' && (
-            <button
-              onClick={() => handleStatusChange('in Arbeit')}
-              disabled={updating}
-              className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-            >
-              In Arbeit nehmen
-            </button>
-          )}
-
-          {goal.status === 'in Arbeit' && (
-            <button
-              onClick={() => handleStatusChange('offen')}
-              disabled={updating}
-              className="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
-            >
-              Zurück zu Offen
-            </button>
-          )}
-
-          {goal.status === 'erledigt' && (
-            <button
-              onClick={() => handleStatusChange('offen')}
-              disabled={updating}
-              className="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
-            >
-              Wieder öffnen
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Erfolgs-Meldung bei erledigtem Ziel */}
       {goal.status === 'erledigt' && (
         <div className="mt-6 bg-green-50 border border-green-200 rounded p-4">
           <p className="text-green-800 font-medium">
             ✓ Dieses Ziel wurde erfolgreich abgeschlossen!
           </p>
+        </div>
+      )}
+
+      {/* Kommentare */}
+      <div className="mt-8 border-t pt-6">
+        <CommentSection goalId={parseInt(id!)} />
+      </div>
+        </div>
+
+        {/* History Sidebar (Right) */}
+        {showHistory && (
+          <div className="w-[40%] border-l pl-6 flex flex-col max-h-[calc(100vh-12rem)]">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2 flex-shrink-0">
+              📜 History
+            </h3>
+            <div className="overflow-y-auto flex-1 pr-2">
+              <HistoryTab goalId={parseInt(id!)} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Löschen-Bestätigungs-Modal */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => !deleting && setShowDeleteModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              Ziel löschen?
+            </h3>
+            <p className="text-gray-700 mb-6">
+              Möchtest du das Ziel <strong>"{goal.titel}"</strong> wirklich löschen?
+            </p>
+
+            {/* Warnung bei Unterzielen */}
+            {goal.children && goal.children.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6">
+                <p className="text-yellow-800 text-sm font-medium mb-3">
+                  ⚠️ Dieses Ziel hat {goal.children.length} Unterziel{goal.children.length > 1 ? 'e' : ''}.
+                </p>
+                <p className="text-gray-700 text-sm mb-3">
+                  Was soll gelöscht werden?
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => handleDelete(false)}
+                    disabled={deleting}
+                    className="w-full px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {deleting ? '⏳ Lösche...' : 'Nur dieses Ziel löschen'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(true)}
+                    disabled={deleting}
+                    className="w-full px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {deleting ? '⏳ Lösche...' : `Ziel + alle ${goal.children.length} Unterziele löschen`}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Buttons wenn keine Unterziele */}
+            {(!goal.children || goal.children.length === 0) && (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={() => handleDelete(false)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  {deleting ? '⏳ Lösche...' : 'Ja, löschen'}
+                </button>
+              </div>
+            )}
+
+            {/* Abbrechen-Button wenn Unterziele vorhanden */}
+            {goal.children && goal.children.length > 0 && (
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="w-full mt-3 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+              >
+                Abbrechen
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

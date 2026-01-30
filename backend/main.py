@@ -1,12 +1,20 @@
-from typing import Optional
+
+from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models import Base, SessionLocal, engine, Ziel
-from schemas import ZielCreate, ZielRead, ZielReadWithChildren
+from models import Base, Kommentar, SessionLocal, Ziel, ZielHistory, engine
+from schemas import (
+    KommentarCreate,
+    KommentarRead,
+    ZielCreate,
+    ZielHistoryRead,
+    ZielRead,
+    ZielReadWithChildren,
+)
 
 # Konzept Phase 2.3: Tabellen beim App-Start anlegen
 Base.metadata.create_all(bind=engine)
@@ -52,12 +60,21 @@ def create_ziel(ziel: ZielCreate, db: Session = Depends(get_db)) -> ZielRead:
     db.add(db_ziel)
     db.commit()
     db.refresh(db_ziel)
+    
+    # History-Eintrag: Ziel erstellt
+    log_history(db, db_ziel.id, "created")
+    db.commit()
+    
+    # Eltern-Ziel-Daten aktualisieren, falls ein Parent existiert
+    if db_ziel.parent_id:
+        update_parent_dates(db_ziel.parent_id, db)
+    
     return ZielRead.model_validate(db_ziel)
 
 
 @app.get("/ziele")
 def get_ziele(
-    tree: Optional[int] = Query(None, description="1 für hierarchische Struktur"),
+    tree: int | None = Query(None, description="1 für hierarchische Struktur"),
     db: Session = Depends(get_db),
 ):
     """Ziele laden (flach oder hierarchisch)."""
@@ -92,6 +109,20 @@ def get_ziel(ziel_id: int, db: Session = Depends(get_db)) -> ZielRead:
     return ZielRead.model_validate(ziel)
 
 
+@app.get("/ziele/{ziel_id}/history", response_model=list[ZielHistoryRead])
+def get_ziel_history(ziel_id: int, db: Session = Depends(get_db)) -> list[ZielHistoryRead]:
+    """History-Einträge für ein Ziel laden (chronologisch)."""
+    # Prüfe ob Ziel existiert
+    ziel = db.get(Ziel, ziel_id)
+    if ziel is None:
+        raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
+    
+    # Lade History-Einträge (neueste zuerst)
+    stmt = select(ZielHistory).where(ZielHistory.ziel_id == ziel_id).order_by(ZielHistory.changed_at.desc())
+    history_entries = db.scalars(stmt).all()
+    return [ZielHistoryRead.model_validate(entry) for entry in history_entries]
+
+
 @app.put("/ziele/{ziel_id}", response_model=ZielRead)
 def update_ziel(
     ziel_id: int, ziel: ZielCreate, db: Session = Depends(get_db)
@@ -100,10 +131,30 @@ def update_ziel(
     db_ziel = db.get(Ziel, ziel_id)
     if db_ziel is None:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
+    
+    old_parent_id = db_ziel.parent_id
+    
+    # History-Logging: Geänderte Felder tracken
     for key, value in ziel.model_dump().items():
+        old_val = getattr(db_ziel, key)
+        if old_val != value:
+            # Konvertiere Werte zu String für History
+            old_str = str(old_val) if old_val is not None else None
+            new_str = str(value) if value is not None else None
+            log_history(db, ziel_id, "updated", field_name=key, old_value=old_str, new_value=new_str)
         setattr(db_ziel, key, value)
+    
     db.commit()
     db.refresh(db_ziel)
+    
+    # Eltern-Ziel-Daten aktualisieren (falls vorhanden)
+    if db_ziel.parent_id:
+        update_parent_dates(db_ziel.parent_id, db)
+    
+    # Falls parent_id geändert wurde, auch alten Parent aktualisieren
+    if old_parent_id and old_parent_id != db_ziel.parent_id:
+        update_parent_dates(old_parent_id, db)
+    
     return ZielRead.model_validate(db_ziel)
 
 
@@ -117,20 +168,104 @@ def update_ziel_status(
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
     if "status" not in status:
         raise HTTPException(status_code=400, detail="Status-Feld fehlt")
-    db_ziel.status = status["status"]
+    
+    old_status = db_ziel.status
+    new_status = status["status"]
+    
+    # History-Eintrag: Status geändert
+    if old_status != new_status:
+        log_history(db, ziel_id, "status_changed", field_name="status", old_value=old_status, new_value=new_status)
+    
+    db_ziel.status = new_status
     db.commit()
     db.refresh(db_ziel)
     return ZielRead.model_validate(db_ziel)
 
 
 @app.delete("/ziele/{ziel_id}", status_code=204)
-def delete_ziel(ziel_id: int, db: Session = Depends(get_db)) -> None:
-    """Ziel löschen."""
+def delete_ziel(
+    ziel_id: int,
+    cascade: bool = Query(False, description="True = Unterziele auch löschen"),
+    db: Session = Depends(get_db)
+) -> None:
+    """Ziel löschen (optional mit allen Unterzielen)."""
     db_ziel = db.get(Ziel, ziel_id)
     if db_ziel is None:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
-    db.delete(db_ziel)
+    
+    if cascade:
+        # Rekursiv alle Unterziele löschen
+        delete_with_children(db_ziel, db)
+    else:
+        # Nur dieses Ziel löschen
+        db.delete(db_ziel)
+    
     db.commit()
+
+
+def delete_with_children(ziel: Ziel, db: Session) -> None:
+    """Rekursiv Ziel mit allen Unterzielen löschen."""
+    # Erst alle Kinder löschen
+    stmt = select(Ziel).where(Ziel.parent_id == ziel.id)
+    children = db.scalars(stmt).all()
+    for child in children:
+        delete_with_children(child, db)
+    # Dann das Ziel selbst löschen
+    db.delete(ziel)
+
+
+def update_parent_dates(parent_id: int, db: Session) -> None:
+    """
+    Aktualisiert die Daten eines Eltern-Ziels basierend auf seinen Unterzielen.
+    Setzt start_datum auf das kleinste und end_datum auf das größte der Unterziele.
+    Funktion ist rekursiv - aktualisiert die komplette Hierarchie nach oben.
+    """
+    # Eltern-Ziel laden
+    parent = db.get(Ziel, parent_id)
+    if not parent:
+        return
+    
+    # Alle Unterziele laden
+    stmt = select(Ziel).where(Ziel.parent_id == parent_id)
+    children = db.scalars(stmt).all()
+    
+    if not children:
+        # Keine Unterziele vorhanden - nichts zu tun
+        return
+    
+    # Kleinste und größte Daten finden
+    min_start = min(child.start_datum for child in children)
+    max_end = max(child.end_datum for child in children)
+    
+    # Eltern-Ziel aktualisieren
+    parent.start_datum = min_start
+    parent.end_datum = max_end
+    db.commit()
+    
+    # REKURSIV: Falls dieses Ziel selbst ein Parent hat, auch dieses aktualisieren
+    if parent.parent_id:
+        update_parent_dates(parent.parent_id, db)
+
+
+def log_history(
+    db: Session,
+    ziel_id: int,
+    change_type: str,
+    field_name: str | None = None,
+    old_value: str | None = None,
+    new_value: str | None = None
+) -> None:
+    """Helper-Funktion zum Logging von Änderungen."""
+    history_entry = ZielHistory(
+        ziel_id=ziel_id,
+        changed_at=datetime.utcnow(),
+        change_type=change_type,
+        field_name=field_name,
+        old_value=old_value,
+        new_value=new_value
+    )
+    db.add(history_entry)
+    # Kein commit hier - wird vom Haupt-Endpoint gemacht
 
 
 # Hilfsfunktion für hierarchische Struktur
@@ -153,6 +288,74 @@ def build_tree(ziel: Ziel, db: Session) -> ZielReadWithChildren:
         "children": children_data
     }
     return ZielReadWithChildren(**ziel_dict)
+
+
+# ===== KOMMENTAR-ENDPOINTS =====
+
+@app.post("/ziele/{ziel_id}/kommentare", response_model=KommentarRead, status_code=201)
+def create_kommentar(
+    ziel_id: int,
+    kommentar_data: KommentarCreate,
+    db: Session = Depends(get_db)
+) -> KommentarRead:
+    """Erstellt einen neuen Kommentar für ein Ziel."""
+    # Prüfen, ob Ziel existiert
+    ziel = db.get(Ziel, ziel_id)
+    if not ziel:
+        raise HTTPException(status_code=404, detail=f"Ziel mit ID {ziel_id} nicht gefunden")
+    
+    # Kommentar erstellen
+    new_kommentar = Kommentar(
+        ziel_id=ziel_id,
+        created_at=datetime.utcnow(),
+        content=kommentar_data.content
+    )
+    db.add(new_kommentar)
+    
+    # History-Eintrag für Kommentar
+    log_history(
+        db=db,
+        ziel_id=ziel_id,
+        change_type="comment_added",
+        new_value=f"Kommentar hinzugefügt (ID: {new_kommentar.id})"
+    )
+    
+    db.commit()
+    db.refresh(new_kommentar)
+    return new_kommentar
+
+
+@app.get("/ziele/{ziel_id}/kommentare", response_model=list[KommentarRead])
+def get_kommentare(ziel_id: int, db: Session = Depends(get_db)) -> list[KommentarRead]:
+    """Gibt alle Kommentare eines Ziels zurück (chronologisch)."""
+    # Prüfen, ob Ziel existiert
+    ziel = db.get(Ziel, ziel_id)
+    if not ziel:
+        raise HTTPException(status_code=404, detail=f"Ziel mit ID {ziel_id} nicht gefunden")
+    
+    # Kommentare abrufen (nach Erstellungsdatum absteigend)
+    stmt = (
+        select(Kommentar)
+        .where(Kommentar.ziel_id == ziel_id)
+        .order_by(Kommentar.created_at.desc())
+    )
+    kommentare = db.execute(stmt).scalars().all()
+    return list(kommentare)
+
+
+@app.delete("/kommentare/{kommentar_id}", status_code=204)
+def delete_kommentar(kommentar_id: int, db: Session = Depends(get_db)) -> None:
+    """Löscht einen Kommentar."""
+    kommentar = db.get(Kommentar, kommentar_id)
+    if not kommentar:
+        raise HTTPException(status_code=404, detail=f"Kommentar mit ID {kommentar_id} nicht gefunden")
+    
+    ziel_id = kommentar.ziel_id
+    db.delete(kommentar)
+    db.commit()
+    
+    # Kein History-Eintrag beim Löschen von Kommentaren
+    # (optional: könnte man hinzufügen)
 
 
 if __name__ == "__main__":

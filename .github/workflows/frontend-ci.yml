@@ -45,4 +45,3 @@ jobs:
         if: steps.frontend.outputs.has_frontend == 'true'
         run: npm run lint
         working-directory: frontend
-        continue-on-error: true   # bis ESLint konfiguriert

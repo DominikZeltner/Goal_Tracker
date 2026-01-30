@@ -15,6 +15,7 @@ env/
 *.db
 *.sqlite
 *.sqlite3
+backups/
 
 # ============== Node (Frontend) ==============
 node_modules/

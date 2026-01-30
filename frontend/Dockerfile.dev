@@ -1,0 +1,15 @@
+# Development Dockerfile für Frontend mit Hot Reload
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Dependencies installieren
+COPY package.json package-lock.json ./
+RUN npm install
+
+# Port 5173 (Vite Dev Server) exponieren
+EXPOSE 5173
+
+# Vite Dev Server starten mit Hot Reload
+# --host 0.0.0.0 erlaubt Zugriff von außerhalb des Containers
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

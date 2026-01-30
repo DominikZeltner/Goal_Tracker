@@ -3,6 +3,8 @@ import Layout from './components/Layout';
 import Timeline from './pages/Timeline';
 import Tree from './pages/Tree';
 import Detail from './pages/Detail';
+import NewGoal from './pages/NewGoal';
+import EditGoal from './pages/EditGoal';
 
 function App() {
   return (
@@ -11,6 +13,8 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Timeline />} />
           <Route path="tree" element={<Tree />} />
+          <Route path="ziel/neu" element={<NewGoal />} />
+          <Route path="ziel/:id/bearbeiten" element={<EditGoal />} />
           <Route path="ziel/:id" element={<Detail />} />
         </Route>
       </Routes>
@@ -18,4 +22,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
