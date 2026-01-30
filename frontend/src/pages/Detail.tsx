@@ -22,7 +22,7 @@ export default function Detail() {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'detail' | 'history'>('detail');
+  const [showHistory, setShowHistory] = useState(false);
 
   // Ziel laden (mit Unterzielen für Fortschritts-Berechnung)
   const loadGoal = async () => {
@@ -55,9 +55,10 @@ export default function Detail() {
     setUpdating(true);
     setError(null);
     try {
-      const updatedGoal = await updateStatus(parseInt(id), 'erledigt');
-      setGoal(updatedGoal);
-      console.log('Status aktualisiert:', updatedGoal);
+      await updateStatus(parseInt(id), 'erledigt');
+      console.log('Status aktualisiert auf: erledigt');
+      // Ziel neu laden, um alle Daten inkl. children zu erhalten
+      await loadGoal();
     } catch (err) {
       const error = err as Error;
       console.error('Fehler beim Aktualisieren des Status:', error);
@@ -74,9 +75,10 @@ export default function Detail() {
     setUpdating(true);
     setError(null);
     try {
-      const updatedGoal = await updateStatus(parseInt(id), newStatus);
-      setGoal(updatedGoal);
-      console.log('Status aktualisiert:', updatedGoal);
+      await updateStatus(parseInt(id), newStatus);
+      console.log('Status aktualisiert auf:', newStatus);
+      // Ziel neu laden, um alle Daten inkl. children zu erhalten
+      await loadGoal();
     } catch (err) {
       const error = err as Error;
       console.error('Fehler beim Aktualisieren des Status:', error);
@@ -156,29 +158,44 @@ export default function Detail() {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       {/* Header-Zeile 1: Navigation-Buttons */}
-      <div className="mb-4 flex items-center gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
-        >
-          ← Zurück
-        </button>
-        
-        <Link
-          to={`/ziel/${goal.id}/bearbeiten`}
-          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
-          aria-label="Ziel bearbeiten"
-        >
-          ✏️ Bearbeiten
-        </Link>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
+          >
+            ← Zurück
+          </button>
+          
+          <Link
+            to={`/ziel/${goal.id}/bearbeiten`}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
+            aria-label="Ziel bearbeiten"
+          >
+            ✏️ Bearbeiten
+          </Link>
 
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            disabled={updating || deleting}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            aria-label="Ziel löschen"
+          >
+            🗑️ Löschen
+          </button>
+        </div>
+
+        {/* History Toggle Button */}
         <button
-          onClick={() => setShowDeleteModal(true)}
-          disabled={updating || deleting}
-          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-          aria-label="Ziel löschen"
+          onClick={() => setShowHistory(!showHistory)}
+          className={`px-3 py-1.5 text-sm rounded-md transition-colors flex items-center gap-1 ${
+            showHistory
+              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+          aria-label="History anzeigen/verbergen"
         >
-          🗑️ Löschen
+          📜 History
         </button>
       </div>
 
@@ -242,35 +259,10 @@ export default function Detail() {
         </div>
       </div>
 
-      {/* Tab-Navigation */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="flex space-x-8" aria-label="Tabs">
-          <button
-            onClick={() => setActiveTab('detail')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'detail'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Details
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'history'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            📜 History
-          </button>
-        </nav>
-      </div>
-
-      {/* Tab-Content: Detail */}
-      {activeTab === 'detail' && (
-        <>
+      {/* Main Content: Splitscreen Layout */}
+      <div className="flex gap-6">
+        {/* Detail Content (Left) */}
+        <div className={`flex-1 ${showHistory ? 'max-w-[60%]' : ''}`}>
           {/* Beschreibung */}
       {goal.beschreibung && (
         <div className="mb-6">
@@ -363,11 +355,20 @@ export default function Detail() {
           </p>
         </div>
       )}
-        </>
-      )}
+        </div>
 
-      {/* Tab-Content: History */}
-      {activeTab === 'history' && <HistoryTab goalId={parseInt(id!)} />}
+        {/* History Sidebar (Right) */}
+        {showHistory && (
+          <div className="w-[40%] border-l pl-6">
+            <div className="sticky top-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                📜 History
+              </h3>
+              <HistoryTab goalId={parseInt(id!)} />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Löschen-Bestätigungs-Modal */}
       {showDeleteModal && (
