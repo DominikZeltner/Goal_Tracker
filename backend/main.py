@@ -60,15 +60,15 @@ def create_ziel(ziel: ZielCreate, db: Session = Depends(get_db)) -> ZielRead:
     db.add(db_ziel)
     db.commit()
     db.refresh(db_ziel)
-    
+
     # History-Eintrag: Ziel erstellt
     log_history(db, db_ziel.id, "created")
     db.commit()
-    
+
     # Eltern-Ziel-Daten aktualisieren, falls ein Parent existiert
     if db_ziel.parent_id:
         update_parent_dates(db_ziel.parent_id, db)
-    
+
     return ZielRead.model_validate(db_ziel)
 
 
@@ -116,7 +116,7 @@ def get_ziel_history(ziel_id: int, db: Session = Depends(get_db)) -> list[ZielHi
     ziel = db.get(Ziel, ziel_id)
     if ziel is None:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
-    
+
     # Lade History-Einträge (neueste zuerst)
     stmt = select(ZielHistory).where(ZielHistory.ziel_id == ziel_id).order_by(ZielHistory.changed_at.desc())
     history_entries = db.scalars(stmt).all()
@@ -131,9 +131,9 @@ def update_ziel(
     db_ziel = db.get(Ziel, ziel_id)
     if db_ziel is None:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
-    
+
     old_parent_id = db_ziel.parent_id
-    
+
     # History-Logging: Geänderte Felder tracken
     for key, value in ziel.model_dump().items():
         old_val = getattr(db_ziel, key)
@@ -143,18 +143,18 @@ def update_ziel(
             new_str = str(value) if value is not None else None
             log_history(db, ziel_id, "updated", field_name=key, old_value=old_str, new_value=new_str)
         setattr(db_ziel, key, value)
-    
+
     db.commit()
     db.refresh(db_ziel)
-    
+
     # Eltern-Ziel-Daten aktualisieren (falls vorhanden)
     if db_ziel.parent_id:
         update_parent_dates(db_ziel.parent_id, db)
-    
+
     # Falls parent_id geändert wurde, auch alten Parent aktualisieren
     if old_parent_id and old_parent_id != db_ziel.parent_id:
         update_parent_dates(old_parent_id, db)
-    
+
     return ZielRead.model_validate(db_ziel)
 
 
@@ -168,14 +168,14 @@ def update_ziel_status(
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
     if "status" not in status:
         raise HTTPException(status_code=400, detail="Status-Feld fehlt")
-    
+
     old_status = db_ziel.status
     new_status = status["status"]
-    
+
     # History-Eintrag: Status geändert
     if old_status != new_status:
         log_history(db, ziel_id, "status_changed", field_name="status", old_value=old_status, new_value=new_status)
-    
+
     db_ziel.status = new_status
     db.commit()
     db.refresh(db_ziel)
@@ -192,14 +192,14 @@ def delete_ziel(
     db_ziel = db.get(Ziel, ziel_id)
     if db_ziel is None:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
-    
+
     if cascade:
         # Rekursiv alle Unterziele löschen
         delete_with_children(db_ziel, db)
     else:
         # Nur dieses Ziel löschen
         db.delete(db_ziel)
-    
+
     db.commit()
 
 
@@ -224,24 +224,24 @@ def update_parent_dates(parent_id: int, db: Session) -> None:
     parent = db.get(Ziel, parent_id)
     if not parent:
         return
-    
+
     # Alle Unterziele laden
     stmt = select(Ziel).where(Ziel.parent_id == parent_id)
     children = db.scalars(stmt).all()
-    
+
     if not children:
         # Keine Unterziele vorhanden - nichts zu tun
         return
-    
+
     # Kleinste und größte Daten finden
     min_start = min(child.start_datum for child in children)
     max_end = max(child.end_datum for child in children)
-    
+
     # Eltern-Ziel aktualisieren
     parent.start_datum = min_start
     parent.end_datum = max_end
     db.commit()
-    
+
     # REKURSIV: Falls dieses Ziel selbst ein Parent hat, auch dieses aktualisieren
     if parent.parent_id:
         update_parent_dates(parent.parent_id, db)
@@ -303,7 +303,7 @@ def create_kommentar(
     ziel = db.get(Ziel, ziel_id)
     if not ziel:
         raise HTTPException(status_code=404, detail=f"Ziel mit ID {ziel_id} nicht gefunden")
-    
+
     # Kommentar erstellen
     new_kommentar = Kommentar(
         ziel_id=ziel_id,
@@ -311,15 +311,15 @@ def create_kommentar(
         content=kommentar_data.content
     )
     db.add(new_kommentar)
-    
-    # History-Eintrag für Kommentar
+
+    # History-Eintrag für Kommentar (Inhalt speichern, damit er in der History sichtbar ist)
     log_history(
         db=db,
         ziel_id=ziel_id,
         change_type="comment_added",
-        new_value=f"Kommentar hinzugefügt (ID: {new_kommentar.id})"
+        new_value=kommentar_data.content
     )
-    
+
     db.commit()
     db.refresh(new_kommentar)
     return new_kommentar
@@ -332,7 +332,7 @@ def get_kommentare(ziel_id: int, db: Session = Depends(get_db)) -> list[Kommenta
     ziel = db.get(Ziel, ziel_id)
     if not ziel:
         raise HTTPException(status_code=404, detail=f"Ziel mit ID {ziel_id} nicht gefunden")
-    
+
     # Kommentare abrufen (nach Erstellungsdatum absteigend)
     stmt = (
         select(Kommentar)
@@ -349,11 +349,10 @@ def delete_kommentar(kommentar_id: int, db: Session = Depends(get_db)) -> None:
     kommentar = db.get(Kommentar, kommentar_id)
     if not kommentar:
         raise HTTPException(status_code=404, detail=f"Kommentar mit ID {kommentar_id} nicht gefunden")
-    
-    ziel_id = kommentar.ziel_id
+
     db.delete(kommentar)
     db.commit()
-    
+
     # Kein History-Eintrag beim Löschen von Kommentaren
     # (optional: könnte man hinzufügen)
 

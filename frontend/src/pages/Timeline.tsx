@@ -2,8 +2,59 @@ import { useEffect, useRef, useState } from 'react';
 import { Timeline as VisTimeline } from 'vis-timeline/standalone';
 import { DataSet } from 'vis-data';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
-import { getGoals, updateGoal, Ziel } from '../api/goals';
+import { getGoals, updateGoal, Ziel, ZielWithChildren } from '../api/goals';
 import { useNavigate, Link } from 'react-router-dom';
+
+// Baut Items + Groups für vis-timeline als Tree-Liste: je Hauptziel eine Zeile, darunter direkt seine Unterziele (zusammengehörige Ziele untereinander)
+function buildTimelineData(goals: ZielWithChildren[]): {
+  items: Array<{ id: number; content: string; start: string; end: string; style: string; title: string; group: string }>;
+  groups: Array<{ id: string; content: string; order?: number }>;
+  flatGoals: Ziel[];
+} {
+  const flatGoals: Ziel[] = [];
+  const items: Array<{ id: number; content: string; start: string; end: string; style: string; title: string; group: string }> = [];
+  const groups: Array<{ id: string; content: string; order?: number }> = [];
+  let groupOrder = 0;
+
+  function collectFlat(g: ZielWithChildren) {
+    flatGoals.push(g);
+    if (g.children) g.children.forEach(collectFlat);
+  }
+
+  goals.forEach((goal) => {
+    collectFlat(goal);
+    // Zeile 1: Dieses Hauptziel (eine Zeile pro Hauptziel)
+    const rootGroupId = `g-root-${goal.id}`;
+    groups.push({ id: rootGroupId, content: goal.titel, order: groupOrder++ });
+    items.push({
+      id: goal.id,
+      content: goal.titel,
+      start: goal.start_datum,
+      end: goal.end_datum,
+      style: `background-color: ${STATUS_COLORS[goal.status] || STATUS_COLORS.offen}; border-color: ${STATUS_COLORS[goal.status] || STATUS_COLORS.offen};`,
+      title: `${goal.titel} - Status: ${goal.status}`,
+      group: rootGroupId,
+    });
+    // Zeile 2: Direkt darunter – Unterziele (Tree-Liste, zusammengehörig)
+    if (goal.children && goal.children.length > 0) {
+      const childrenGroupId = `g-children-${goal.id}`;
+      groups.push({ id: childrenGroupId, content: `↳ ${goal.titel}`, order: groupOrder++ });
+      goal.children.forEach((child) => {
+        items.push({
+          id: child.id,
+          content: child.titel,
+          start: child.start_datum,
+          end: child.end_datum,
+          style: `background-color: ${STATUS_COLORS[child.status] || STATUS_COLORS.offen}; border-color: ${STATUS_COLORS[child.status] || STATUS_COLORS.offen};`,
+          title: `${child.titel} - Status: ${child.status}`,
+          group: childrenGroupId,
+        });
+      });
+    }
+  });
+
+  return { items, groups, flatGoals };
+}
 
 // Farben nach Status
 const STATUS_COLORS = {
@@ -17,20 +68,19 @@ export default function Timeline() {
   const timelineInstance = useRef<VisTimeline | null>(null);
   const [loading, setLoading] = useState(true); // Initial auf true, damit Timeline-Container gerendert wird
   const [error, setError] = useState<string | null>(null);
-  const [goalsData, setGoalsData] = useState<Ziel[]>([]);
+  const [treeData, setTreeData] = useState<ZielWithChildren[]>([]);
   const navigate = useNavigate();
 
-  // Effekt 1: Daten laden
+  // Effekt 1: Hierarchische Daten laden (für Timeline-Groups = Abhängigkeiten sichtbar)
   useEffect(() => {
     const loadGoals = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const data = await getGoals(false) as Ziel[];
-        console.log('✅ Ziele geladen:', data);
-        console.log('📊 Anzahl Ziele:', data.length);
-        setGoalsData(data);
+        const data = (await getGoals(true)) as ZielWithChildren[];
+        console.log('✅ Ziele (Hierarchie) geladen:', data);
+        setTreeData(data);
       } catch (err) {
         const error = err as Error;
         console.error('❌ Fehler beim Laden der Ziele:', error);
@@ -45,137 +95,65 @@ export default function Timeline() {
 
   // Effekt 2: Timeline initialisieren (wenn Daten vorhanden sind)
   useEffect(() => {
-    if (loading || error || goalsData.length === 0) {
-      console.log('⏸️ Timeline-Init übersprungen:', { loading, error: !!error, dataLength: goalsData.length });
+    if (loading || error || treeData.length === 0) {
+      console.log('⏸️ Timeline-Init übersprungen:', { loading, error: !!error, dataLength: treeData.length });
       return;
     }
 
     const initTimeline = async () => {
-      console.log('🔍 timelineRef.current:', timelineRef.current);
       if (!timelineRef.current) {
         console.error('❌ timelineRef.current ist NULL! Timeline-Container existiert nicht im DOM.');
         return;
       }
-      console.log('✅ Timeline-Container gefunden');
+
+      const { items: itemList, groups: groupList, flatGoals } = buildTimelineData(treeData);
 
       try {
+        const items = new DataSet(itemList);
+        const groups = new DataSet(groupList);
 
-        // Daten für vis-timeline mappen
-        const items = new DataSet<{
-          id: number;
-          content: string;
-          start: string;
-          end: string;
-          style: string;
-          title: string;
-        }>(
-          goalsData.map((ziel) => ({
-            id: ziel.id,
-            content: ziel.titel,
-            start: ziel.start_datum,
-            end: ziel.end_datum,
-            style: `background-color: ${STATUS_COLORS[ziel.status] || STATUS_COLORS.offen}; border-color: ${STATUS_COLORS[ziel.status] || STATUS_COLORS.offen};`,
-            title: `${ziel.titel} - Status: ${ziel.status}`, // Tooltip
-          }))
-        );
-
-        console.log('🗺️ Timeline Items gemappt:', items.get());
-        console.log('📈 Anzahl Items:', items.length);
-
-        // Timeline-Optionen
         const options = {
           height: '500px',
-          margin: {
-            item: 10,
-            axis: 20,
-          },
-          zoomMin: 1000 * 60 * 60 * 24 * 7, // Min: 1 Woche
-          zoomMax: 1000 * 60 * 60 * 24 * 365 * 2, // Max: 2 Jahre
+          margin: { item: 10, axis: 20 },
+          zoomMin: 1000 * 60 * 60 * 24 * 7,
+          zoomMax: 1000 * 60 * 60 * 24 * 365 * 2,
           orientation: 'top',
           stack: true,
-          editable: {
-            updateTime: true,  // Zeitraum verschieben erlauben
-            remove: false,      // Löschen nicht erlauben
-            add: false,         // Hinzufügen nicht erlauben
-          },
-          // onMoving für Feedback während des Drag entfernt - nicht typkompatibel
+          editable: { updateTime: true, remove: false, add: false },
+          groupOrder: 'order',
         };
 
-        // Timeline erstellen oder aktualisieren
-        console.log('🔧 Timeline-Instanz existiert bereits?', !!timelineInstance.current);
-        
         if (timelineInstance.current) {
-          console.log('🔄 Aktualisiere bestehende Timeline...');
-          timelineInstance.current.setItems(items);
-          timelineInstance.current.fit(); // Timeline auf Items fokussieren
-          console.log('✅ Timeline aktualisiert mit', items.length, 'Items');
+          timelineInstance.current.setData({ items, groups });
+          timelineInstance.current.fit();
         } else {
-          console.log('🆕 Erstelle neue Timeline...');
-          try {
-            timelineInstance.current = new VisTimeline(
-              timelineRef.current,
-              items,
-              options
-            );
-            console.log('✅ Timeline erfolgreich erstellt mit', items.length, 'Items');
-          } catch (err) {
-            console.error('❌ Fehler beim Erstellen der Timeline:', err);
-            throw err;
-          }
+          timelineInstance.current = new VisTimeline(
+            timelineRef.current,
+            items,
+            groups,
+            options
+          );
+          setTimeout(() => timelineInstance.current?.fit(), 100);
 
-          // Timeline auf den sichtbaren Bereich der Items fokussieren
-          setTimeout(() => {
-            if (timelineInstance.current) {
-              timelineInstance.current.fit();
-              console.log('🎯 Timeline fokussiert auf Items');
-            }
-          }, 100);
-
-          // Klick-Handler für Navigation zu Detail-Seite
-          timelineInstance.current.on('select', (properties) => {
-            if (properties.items.length > 0) {
-              const selectedId = properties.items[0];
-              navigate(`/ziel/${selectedId}`);
-            }
+          timelineInstance.current.on('select', (properties: { items: number[] }) => {
+            if (properties.items.length > 0) navigate(`/ziel/${properties.items[0]}`);
           });
 
-          // Drag & Drop Handler - wird aufgerufen wenn Item verschoben wurde
           timelineInstance.current.on('changed', async () => {
             const changedItems = items.get();
-            
-            // Prüfe welche Items geändert wurden
             for (const item of changedItems) {
-              const originalGoal = goalsData.find((g) => g.id === item.id);
-              
+              const originalGoal = flatGoals.find((g) => g.id === item.id);
               if (!originalGoal) continue;
-              
-              // Prüfe ob sich die Daten geändert haben
               const itemStart = new Date(item.start as string | Date).toISOString().split('T')[0];
               const itemEnd = new Date(item.end as string | Date).toISOString().split('T')[0];
-              
               if (itemStart !== originalGoal.start_datum || itemEnd !== originalGoal.end_datum) {
-                console.log('Item verschoben:', item.id, 'von', originalGoal.start_datum, '-', originalGoal.end_datum, 'zu', itemStart, '-', itemEnd);
-                
                 try {
-                  // Update-Request an API senden
-                  await updateGoal(item.id as number, {
-                    start_datum: itemStart,
-                    end_datum: itemEnd,
-                  });
-                  
-                  console.log('Ziel-Zeitraum erfolgreich aktualisiert');
-                  
-                  // Originalziel aktualisieren für nächste Änderung
+                  await updateGoal(item.id as number, { start_datum: itemStart, end_datum: itemEnd });
                   originalGoal.start_datum = itemStart;
                   originalGoal.end_datum = itemEnd;
-                } catch (error) {
-                  console.error('Fehler beim Aktualisieren des Zeitraums:', error);
-                  // Bei Fehler: Item zurücksetzen
-                  items.update({
-                    id: item.id,
-                    start: originalGoal.start_datum,
-                    end: originalGoal.end_datum,
-                  });
+                } catch (err) {
+                  console.error('Fehler beim Aktualisieren des Zeitraums:', err);
+                  items.update({ id: item.id, start: originalGoal.start_datum, end: originalGoal.end_datum });
                 }
               }
             }
@@ -188,18 +166,16 @@ export default function Timeline() {
 
     initTimeline();
 
-    // Cleanup beim Unmount
     return () => {
       if (timelineInstance.current) {
-        console.log('🧹 Timeline wird zerstört');
         timelineInstance.current.destroy();
         timelineInstance.current = null;
       }
     };
-  }, [goalsData, loading, error, navigate]);
+  }, [treeData, loading, error, navigate]);
 
   // Leerer Zustand - keine Ziele vorhanden
-  if (!loading && !error && goalsData.length === 0) {
+  if (!loading && !error && treeData.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
         <div className="max-w-md mx-auto">
@@ -239,7 +215,7 @@ export default function Timeline() {
             </div>
           </div>
           <div className="text-sm text-gray-600 italic">
-            💡 Tipp: Ziehe Items, um Zeitraum zu ändern
+            💡 Tipp: Ziehe Items, um Zeitraum zu ändern. Gruppen zeigen Hauptziele und Unterziele (Abhängigkeiten).
           </div>
         </div>
       </div>

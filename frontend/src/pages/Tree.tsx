@@ -1,10 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   ReactFlow,
   Node,
   Edge,
   Controls,
   Background,
+  Position,
+  StraightEdge,
   useNodesState,
   useEdgesState,
   BackgroundVariant,
@@ -13,11 +15,12 @@ import {
   addEdge,
   EdgeChange,
   applyEdgeChanges,
+  ReactFlowInstance,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import { getGoals, updateGoal, ZielWithChildren } from '../api/goals';
+import { getGoal, getGoals, updateGoal, Ziel, ZielWithChildren } from '../api/goals';
 import { useNavigate, Link } from 'react-router-dom';
 import { formatToSwiss } from '../utils/dateFormat';
+import { LabeledHandle } from '../components/LabeledHandle';
 
 // Farben nach Status
 const STATUS_COLORS = {
@@ -32,11 +35,18 @@ const STATUS_BORDER_COLORS = {
   'erledigt': '#10B981',        // Grün
 };
 
-// Custom Node-Komponente
+// Kantenfarben nach Parent-Status (Abhängigkeiten sichtbar)
+const EDGE_COLORS_BY_STATUS: Record<string, string> = {
+  'offen': '#9CA3AF',
+  'in Arbeit': '#3B82F6',
+  'erledigt': '#10B981',
+};
+
+// Custom Node mit Labeled Handles (Eingang/Ausgang beschriftet)
 function GoalNode({ data }: { data: { label: string; status: string; dates?: string } }) {
   return (
     <div
-      className="px-4 py-3 rounded-lg shadow-md cursor-pointer transition-all hover:shadow-lg"
+      className="relative px-4 py-3 rounded-lg shadow-md cursor-pointer transition-all hover:shadow-lg"
       style={{
         backgroundColor: STATUS_COLORS[data.status as keyof typeof STATUS_COLORS] || STATUS_COLORS.offen,
         borderLeft: `4px solid ${STATUS_BORDER_COLORS[data.status as keyof typeof STATUS_BORDER_COLORS] || STATUS_BORDER_COLORS.offen}`,
@@ -44,6 +54,21 @@ function GoalNode({ data }: { data: { label: string; status: string; dates?: str
         maxWidth: '250px',
       }}
     >
+      <div className="absolute -right-2 top-1/2 -translate-y-1/2">
+        <LabeledHandle
+          type="target"
+          position={Position.Right}
+          id="right"
+        />
+      </div>
+      <div className="absolute -left-2 top-1/2 -translate-y-1/2">
+        <LabeledHandle
+          type="source"
+          position={Position.Left}
+          id="left"
+        />
+      </div>
+      
       <div className="font-semibold text-gray-900 text-sm mb-1">{data.label}</div>
       <div className="text-xs text-gray-600">{data.status}</div>
       {data.dates && (
@@ -53,8 +78,27 @@ function GoalNode({ data }: { data: { label: string; status: string; dates?: str
   );
 }
 
+// Maximale Tiefe des Baums (für Flow-Layout: links tief, rechts Hauptziele)
+function getMaxDepth(goals: ZielWithChildren[], level: number = 0): number {
+  let max = level;
+  goals.forEach((g) => {
+    if (g.children && g.children.length > 0) {
+      max = Math.max(max, getMaxDepth(g.children, level + 1));
+    }
+  });
+  return max;
+}
+
+const X_SPACING = 320; // Abstand zwischen Hierarchie-Ebenen (links → rechts)
+const Y_SPACING = 140; // Abstand zwischen Geschwister-Knoten
+
 const nodeTypes: NodeTypes = {
   goalNode: GoalNode,
+};
+
+// Kanten-Typen: StraightEdge für sichtbare Verbindungslinien
+const edgeTypes = {
+  straight: StraightEdge,
 };
 
 export default function Tree() {
@@ -62,25 +106,39 @@ export default function Tree() {
   const [edges, setEdges] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [formatting, setFormatting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const reactFlowRef = useRef<ReactFlowInstance | null>(null);
   const navigate = useNavigate();
 
-  // Funktion zum Erstellen von Knoten und Kanten aus hierarchischen Daten
+  const buildUpdatePayload = (goal: Ziel, parentId: number | null) => ({
+    titel: goal.titel,
+    beschreibung: goal.beschreibung,
+    start_datum: goal.start_datum,
+    end_datum: goal.end_datum,
+    status: goal.status,
+    parent_id: parentId,
+  });
+
+  // Knoten + Kanten: Flow von links (tiefste Ebene) nach rechts (Hauptziele), jede Kante verbindet Unterziel mit übergeordnetem Ziel
   const buildNodesAndEdges = useCallback(
     (
       goals: ZielWithChildren[],
-      parentId: string | null = null,
-      level: number = 0,
-      xOffset: number = 0
-    ): { nodes: Node[]; edges: Edge[]; nextXOffset: number } => {
+      parentId: string | null,
+      parentStatus: string | null,
+      level: number,
+      yOffset: number,
+      maxDepth: number
+    ): { nodes: Node[]; edges: Edge[]; nextYOffset: number } => {
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
-      let currentXOffset = xOffset;
+      let currentYOffset = yOffset;
 
       goals.forEach((goal) => {
         const nodeId = `goal-${goal.id}`;
-        const xPos = currentXOffset * 300;
-        const yPos = level * 150;
+        // Links = tiefste Hierarchie, rechts = Hauptziele (level 0)
+        const xPos = (maxDepth - level) * X_SPACING;
+        const yPos = currentYOffset * Y_SPACING;
 
         newNodes.push({
           id: nodeId,
@@ -89,40 +147,70 @@ export default function Tree() {
           data: {
             label: goal.titel,
             status: goal.status,
-            dates: `${formatToSwiss(goal.start_datum)} - ${formatToSwiss(goal.end_datum)}`,
+            dates: formatToSwiss(goal.end_datum),
           },
         });
 
         if (parentId) {
+          const edgeColor = (parentStatus && EDGE_COLORS_BY_STATUS[parentStatus]) || EDGE_COLORS_BY_STATUS['offen'];
           newEdges.push({
             id: `edge-${parentId}-${nodeId}`,
             source: parentId,
             target: nodeId,
+            sourceHandle: 'left',
+            targetHandle: 'right',
+            type: 'straight',
             animated: false,
-            style: { stroke: '#94A3B8' },
+            style: { stroke: edgeColor, strokeWidth: 3 },
           });
         }
 
-        // Rekursiv Kinder verarbeiten
         if (goal.children && goal.children.length > 0) {
           const childrenResult = buildNodesAndEdges(
             goal.children,
             nodeId,
+            goal.status,
             level + 1,
-            currentXOffset
+            currentYOffset,
+            maxDepth
           );
           newNodes.push(...childrenResult.nodes);
           newEdges.push(...childrenResult.edges);
-          currentXOffset = childrenResult.nextXOffset;
+          currentYOffset = childrenResult.nextYOffset;
         } else {
-          currentXOffset++;
+          currentYOffset++;
         }
       });
 
-      return { nodes: newNodes, edges: newEdges, nextXOffset: currentXOffset };
+      return { nodes: newNodes, edges: newEdges, nextYOffset: currentYOffset };
     },
     []
   );
+
+  // Auto Format: Layout (Flow links→rechts) neu anwenden, danach fitView
+  const handleAutoFormat = useCallback(async () => {
+    setFormatting(true);
+    setError(null);
+    try {
+      const raw = await getGoals(true);
+      const data: ZielWithChildren[] = Array.isArray(raw) ? raw : [];
+      if (data.length === 0) {
+        setNodes([]);
+        setEdges([]);
+      } else {
+        const maxDepth = getMaxDepth(data);
+        const { nodes: newNodes, edges: newEdges } = buildNodesAndEdges(data, null, null, 0, 0, maxDepth);
+        setNodes(newNodes);
+        setEdges(newEdges);
+        setTimeout(() => reactFlowRef.current?.fitView({ padding: 0.2 }), 100);
+      }
+    } catch (err) {
+      const e = err as Error;
+      setError(e.message || 'Fehler beim Formatieren');
+    } finally {
+      setFormatting(false);
+    }
+  }, [buildNodesAndEdges, setNodes, setEdges]);
 
   // Daten laden und Baum aufbauen
   useEffect(() => {
@@ -131,8 +219,9 @@ export default function Tree() {
       setError(null);
 
       try {
-        // Hierarchische Daten von API laden
-        const data = (await getGoals(true)) as ZielWithChildren[];
+        // Hierarchische Daten von API laden (immer als Array behandeln)
+        const raw = await getGoals(true);
+        const data: ZielWithChildren[] = Array.isArray(raw) ? raw : [];
         console.log('Hierarchische Ziele geladen:', data);
 
         if (data.length === 0) {
@@ -141,10 +230,11 @@ export default function Tree() {
           return;
         }
 
-        // Knoten und Kanten erstellen
-        const { nodes, edges } = buildNodesAndEdges(data);
-        setNodes(nodes);
-        setEdges(edges);
+        // Maximale Tiefe für Flow-Layout (links tief, rechts Hauptziele)
+        const maxDepth = getMaxDepth(data);
+        const { nodes: newNodes, edges: newEdges } = buildNodesAndEdges(data, null, null, 0, 0, maxDepth);
+        setNodes(newNodes);
+        setEdges(newEdges);
       } catch (err) {
         const error = err as Error;
         console.error('Fehler beim Laden der Ziele:', error);
@@ -156,6 +246,15 @@ export default function Tree() {
 
     loadTree();
   }, [buildNodesAndEdges, setNodes, setEdges]);
+
+  // Nach dem Setzen der Knoten/Kanten View anpassen (fitView)
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    const timer = setTimeout(() => {
+      reactFlowRef.current?.fitView({ padding: 0.2 });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [nodes.length, edges.length]);
 
   // Klick auf Knoten → Navigation zur Detail-Seite
   const onNodeClick = useCallback(
@@ -176,10 +275,8 @@ export default function Tree() {
 
       setUpdating(true);
       try {
-        // Update parent_id via API
-        await updateGoal(targetGoalId, {
-          parent_id: newParentId,
-        });
+        const targetGoal = await getGoal(targetGoalId);
+        await updateGoal(targetGoalId, buildUpdatePayload(targetGoal, newParentId));
 
         console.log(`Ziel ${targetGoalId} wurde zu Unterziel von ${newParentId}`);
 
@@ -216,10 +313,8 @@ export default function Tree() {
           
           setUpdating(true);
           try {
-            // parent_id entfernen (Backend erwartet undefined, nicht null)
-            await updateGoal(targetGoalId, {
-              parent_id: undefined,
-            });
+            const targetGoal = await getGoal(targetGoalId);
+            await updateGoal(targetGoalId, buildUpdatePayload(targetGoal, null));
 
             console.log(`Ziel ${targetGoalId} ist jetzt ein Hauptziel`);
 
@@ -271,8 +366,18 @@ export default function Tree() {
   return (
     <div className="bg-white rounded-lg shadow p-6" role="region" aria-label="Zielbaum-Ansicht">
       <div className="mb-4">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-2">Zielbaum</h2>
-        <div className="flex gap-4 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
+          <h2 className="text-2xl font-semibold text-gray-800">Zielbaum</h2>
+          <button
+            type="button"
+            onClick={handleAutoFormat}
+            disabled={loading || formatting || nodes.length === 0}
+            className="px-4 py-2 rounded-lg font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {formatting ? 'Formatieren…' : 'Auto Format'}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-4 text-sm">
           <div className="flex items-center gap-2">
             <span
               className="w-4 h-4 rounded"
@@ -294,6 +399,10 @@ export default function Tree() {
             ></span>
             <span>Erledigt</span>
           </div>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-500 italic">Kantenfarbe = Status des übergeordneten Ziels</span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-500 italic">Flow: links = Unterziele (tief), rechts = Hauptziele</span>
         </div>
       </div>
 
@@ -323,9 +432,9 @@ export default function Tree() {
             </div>
           )}
           <div className="mb-2 text-sm text-gray-600 italic">
-            💡 Tipp: Verbinde Knoten, um Hierarchie zu ändern (ziehe von Parent zu Child)
+            💡 Tipp: „Auto Format“ strukturiert den Baum (Flow links→rechts). Per Drag & Drop kannst du Knoten verbinden (Parent→Child) oder Kanten löschen, um die Hierarchie zu ändern.
           </div>
-          <div className="border border-gray-200 rounded" style={{ height: '600px' }}>
+          <div className="border border-gray-200 rounded w-full" style={{ width: '100%', height: '600px', backgroundColor: '#f9fafb' }}>
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -333,8 +442,21 @@ export default function Tree() {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               onNodeClick={onNodeClick}
+              nodesConnectable
+              nodesFocusable
+              onInit={(instance) => {
+                reactFlowRef.current = instance;
+                setTimeout(() => instance.fitView({ padding: 0.2 }), 50);
+              }}
               nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              defaultEdgeOptions={{
+                type: 'straight',
+                style: { stroke: '#374151', strokeWidth: 3 },
+                animated: false,
+              }}
               fitView
+              fitViewOptions={{ padding: 0.2 }}
               minZoom={0.1}
               maxZoom={2}
               deleteKeyCode="Delete"

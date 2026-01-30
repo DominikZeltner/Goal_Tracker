@@ -36,12 +36,12 @@ class Ziel(Base):
     children: Mapped[list["Ziel"]] = relationship(
         "Ziel", backref="parent", remote_side=[id], cascade="all, delete-orphan", single_parent=True
     )
-    
+
     # Relationship für History
     history: Mapped[list["ZielHistory"]] = relationship(
         "ZielHistory", back_populates="ziel", cascade="all, delete-orphan"
     )
-    
+
     # Relationship für Kommentare
     kommentare: Mapped[list["Kommentar"]] = relationship(
         "Kommentar", back_populates="ziel", cascade="all, delete-orphan"

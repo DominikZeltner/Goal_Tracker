@@ -37,7 +37,7 @@ export interface ZielUpdate {
   start_datum?: string;
   end_datum?: string;
   status?: 'offen' | 'in Arbeit' | 'erledigt';
-  parent_id?: number;
+  parent_id?: number | null;
 }
 
 export interface ZielWithChildren extends Ziel {

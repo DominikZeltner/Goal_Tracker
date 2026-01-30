@@ -1,3 +1,34 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* React Flow: Kanten sichtbar halten */
+.react-flow__edge-path {
+  stroke-width: 3px;
+  fill: none;
+}
+
+.react-flow__connection-path {
+  stroke-width: 2px;
+  fill: none;
+}
+
+/* Dreiecks-Handles für Ein-/Ausgang */
+.rf-handle-triangle {
+  width: 14px !important;
+  height: 14px !important;
+  border: 2px solid #ffffff !important;
+  background: #3b82f6 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  pointer-events: all;
+}
+
+.rf-handle-triangle--source {
+  background: #3b82f6 !important;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.rf-handle-triangle--target {
+  background: #9ca3af !important;
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+}
