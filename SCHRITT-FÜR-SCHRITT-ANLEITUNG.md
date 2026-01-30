@@ -323,10 +323,10 @@ Wie in Konzept 1.11/1.13.
 
 **Messbare Kriterien:**
 
-| Kriterium | Prüfung | Erfüllt wenn |
-|-----------|---------|---------------|
-| Dockerfile | Inhalt von `backend/Dockerfile` | FROM python:3.12-slim, uvicorn, Port 8000 |
-| Build | `docker build -t goal-backend ./backend` | Build endet mit „Successfully built …“ |
+| Kriterium  | Prüfung                                  | Erfüllt wenn                              |
+| ---------- | ---------------------------------------- | ----------------------------------------- |
+| Dockerfile | Inhalt von `backend/Dockerfile`          | FROM python:3.12-slim, uvicorn, Port 8000 |
+| Build      | `docker build -t goal-backend ./backend` | Build endet mit „Successfully built …“    |
 
 ### 5.5 docker-compose nur mit Backend
 
@@ -564,8 +564,8 @@ Konzept Phase 5.2.
 
 **Messbare Kriterien:**
 
-| Kriterium | Prüfung | Erfüllt wenn |
-|-----------|---------|---------------|
+| Kriterium  | Prüfung        | Erfüllt wenn                                    |
+| ---------- | -------------- | ----------------------------------------------- |
 | Navigation | Klick auf Item | URL wird /ziel/:id oder Detail-Inhalt erscheint |
 
 ### 9.3 Zielbaum (@xyflow/react)

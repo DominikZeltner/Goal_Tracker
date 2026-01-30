@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getGoalWithChildren, updateStatus, ZielWithChildren } from '../api/goals';
 import ProgressBar from '../components/ProgressBar';
 import { calculateProgress, countCompletedChildren } from '../utils/progress';
+import { formatToSwiss, daysUntilText } from '../utils/dateFormat';
 
 // Status-Farben
 const STATUS_COLORS = {
@@ -163,11 +164,12 @@ export default function Detail() {
       <div className="mb-6 grid grid-cols-2 gap-4">
         <div>
           <h3 className="text-sm font-semibold text-gray-800 mb-1">Start</h3>
-          <p className="text-gray-700">{goal.start_datum}</p>
+          <p className="text-gray-700">{formatToSwiss(goal.start_datum)}</p>
         </div>
         <div>
           <h3 className="text-sm font-semibold text-gray-800 mb-1">Ende</h3>
-          <p className="text-gray-700">{goal.end_datum}</p>
+          <p className="text-gray-700">{formatToSwiss(goal.end_datum)}</p>
+          <p className="text-sm text-gray-500 mt-1">{daysUntilText(goal.end_datum)}</p>
         </div>
       </div>
 
@@ -238,6 +240,15 @@ export default function Detail() {
       <div className="border-t pt-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Aktionen</h3>
         <div className="flex flex-wrap gap-3">
+          {/* Bearbeiten-Button */}
+          <Link
+            to={`/ziel/${goal.id}/bearbeiten`}
+            className="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+            aria-label="Ziel bearbeiten"
+          >
+            ✏️ Bearbeiten
+          </Link>
+
           {/* Abhaken-Button (nur wenn nicht erledigt) */}
           {goal.status !== 'erledigt' && (
             <button

@@ -9,8 +9,9 @@ ARG VITE_API_URL=http://localhost:8000
 # package-lock.json und package.json kopieren
 COPY package-lock.json package.json ./
 
-# Dependencies installieren (npm ci für reproduzierbare Builds)
-RUN npm ci
+# Dependencies installieren (npm install da package-lock.json noch nicht aktualisiert)
+# TODO: Nach lokalem npm install auf npm ci umstellen
+RUN npm install
 
 # Source-Code kopieren
 COPY . .

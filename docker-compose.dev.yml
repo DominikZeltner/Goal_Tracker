@@ -1,0 +1,59 @@
+# Docker Compose für DEVELOPMENT mit Hot Reload
+# 
+# Verwendung:
+#   docker compose -f docker-compose.dev.yml up
+#
+# Features:
+# - Frontend: Vite Dev Server mit HMR (Hot Module Replacement)
+# - Backend: Uvicorn mit --reload
+# - Volume-Mounts für automatisches Neuladen bei Änderungen
+# - Keine Builds zwischen Änderungen nötig!
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_PATH=/app/data/database.db
+      - PYTHONUNBUFFERED=1  # Zeigt Logs sofort an
+    volumes:
+      # Source-Code mounten für Hot Reload
+      - ./backend:/app
+      # Datenbank persistent machen
+      - backend_data:/app/data
+      # Virtuelle Python-Umgebung NICHT mounten (Performance)
+      - /app/__pycache__
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"  # Vite Dev Server Port
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      # Source-Code mounten für Hot Reload
+      - ./frontend:/app
+      # node_modules NICHT mounten (Performance + OS-Kompatibilität)
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    stdin_open: true  # Für interaktive Eingaben (falls nötig)
+    tty: true
+
+volumes:
+  backend_data:
+    driver: local

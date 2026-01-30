@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createGoal, getGoals, Ziel } from '../api/goals';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getGoal, updateGoal, getGoals, Ziel } from '../api/goals';
 import { formatForInput, formatFromInput, formatToSwiss } from '../utils/dateFormat';
 
-export default function NewGoal() {
+export default function EditGoal() {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [parentGoals, setParentGoals] = useState<Ziel[]>([]);
 
@@ -17,105 +19,127 @@ export default function NewGoal() {
   const [status, setStatus] = useState<'offen' | 'in Arbeit' | 'erledigt'>('offen');
   const [parentId, setParentId] = useState<number | null>(null);
 
-  // Parent-Ziele laden
+  // Ziel und Parent-Goals laden
   useEffect(() => {
-    const loadParentGoals = async () => {
+    const loadData = async () => {
+      if (!id) return;
+
+      setLoading(true);
+      setError(null);
+
       try {
-        const data = (await getGoals(false)) as Ziel[];
-        setParentGoals(data);
+        // Ziel laden
+        const goalData = await getGoal(parseInt(id));
+        setTitel(goalData.titel);
+        setBeschreibung(goalData.beschreibung || '');
+        setStartDatum(goalData.start_datum);
+        setEndDatum(goalData.end_datum);
+        setStatus(goalData.status);
+        setParentId(goalData.parent_id || null);
+
+        // Parent-Goals laden (für Dropdown)
+        const goals = await getGoals(false);
+        // Filtere das aktuelle Ziel und seine Unterziele aus (verhindere Zirkel)
+        const availableParents = goals.filter((g) => g.id !== goalData.id);
+        setParentGoals(availableParents);
       } catch (err) {
-        console.error('Fehler beim Laden der Ziele:', err);
+        const error = err as Error;
+        console.error('Fehler beim Laden:', error);
+        setError(error.message || 'Fehler beim Laden des Ziels');
+      } finally {
+        setLoading(false);
       }
     };
-    loadParentGoals();
-  }, []);
+
+    loadData();
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+
+    if (!id) return;
 
     // Validierung
     if (!titel.trim()) {
       setError('Titel ist erforderlich');
       return;
     }
-    if (!startDatum) {
-      setError('Startdatum ist erforderlich');
+
+    if (!startDatum || !endDatum) {
+      setError('Start- und Enddatum sind erforderlich');
       return;
     }
-    if (!endDatum) {
-      setError('Enddatum ist erforderlich');
-      return;
-    }
+
     if (new Date(startDatum) > new Date(endDatum)) {
       setError('Startdatum muss vor dem Enddatum liegen');
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
+    setError(null);
 
     try {
-      const newGoal = await createGoal({
+      const updatedGoal = await updateGoal(parseInt(id), {
         titel: titel.trim(),
         beschreibung: beschreibung.trim() || undefined,
-        start_datum: startDatum,
-        end_datum: endDatum,
+        start_datum: formatFromInput(startDatum),
+        end_datum: formatFromInput(endDatum),
         status,
         parent_id: parentId || undefined,
       });
 
-      // Zur Detail-Ansicht des neuen Ziels navigieren
-      navigate(`/ziel/${newGoal.id}`);
+      console.log('Ziel aktualisiert:', updatedGoal);
+      navigate(`/ziel/${updatedGoal.id}`);
     } catch (err) {
       const error = err as Error;
-      console.error('Fehler beim Erstellen des Ziels:', error);
-      setError(error.message || 'Fehler beim Erstellen des Ziels');
-      setLoading(false);
+      console.error('Fehler beim Aktualisieren:', error);
+      setError(error.message || 'Fehler beim Aktualisieren des Ziels');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    navigate(-1); // Zurück zur vorherigen Seite
+    navigate(`/ziel/${id}`);
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-center items-center h-64">
+            <p className="text-gray-600">Lade Ziel...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Neues Ziel erstellen</h1>
-          <p className="text-gray-600">
-            Erstelle ein neues Ziel oder Unterziel für deinen Goal Tracker.
-          </p>
-        </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Ziel bearbeiten</h2>
 
-        {/* Fehleranzeige */}
         {error && (
-          <div
-            className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg"
-            role="alert"
-          >
-            <p className="text-red-800 font-medium">Fehler:</p>
-            <p className="text-red-700">{error}</p>
+          <div className="mb-4 bg-red-50 border border-red-200 rounded p-4">
+            <p className="text-red-600">Fehler: {error}</p>
           </div>
         )}
 
-        {/* Formular */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Titel */}
           <div>
-            <label htmlFor="titel" className="block text-sm font-medium text-gray-700 mb-2">
-              Titel <span className="text-red-500">*</span>
+            <label htmlFor="titel" className="block text-sm font-medium text-gray-700 mb-1">
+              Titel *
             </label>
             <input
               type="text"
               id="titel"
               value={titel}
               onChange={(e) => setTitel(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="z.B. Website entwickeln"
               required
-              aria-required="true"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="z.B. Bachelorarbeit schreiben"
             />
           </div>
 
@@ -123,7 +147,7 @@ export default function NewGoal() {
           <div>
             <label
               htmlFor="beschreibung"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1"
             >
               Beschreibung
             </label>
@@ -132,48 +156,41 @@ export default function NewGoal() {
               value={beschreibung}
               onChange={(e) => setBeschreibung(e.target.value)}
               rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Beschreibe dein Ziel im Detail..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Weitere Details zum Ziel..."
             />
           </div>
 
           {/* Datum-Felder */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Startdatum */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label
-                htmlFor="startDatum"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Startdatum <span className="text-red-500">*</span>
+              <label htmlFor="startDatum" className="block text-sm font-medium text-gray-700 mb-1">
+                Startdatum *
               </label>
               <input
                 type="date"
                 id="startDatum"
                 value={formatForInput(startDatum)}
                 onChange={(e) => setStartDatum(formatFromInput(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
-                aria-required="true"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               {startDatum && (
                 <p className="text-xs text-gray-500 mt-1">{formatToSwiss(startDatum)}</p>
               )}
             </div>
 
-            {/* Enddatum */}
             <div>
-              <label htmlFor="endDatum" className="block text-sm font-medium text-gray-700 mb-2">
-                Enddatum <span className="text-red-500">*</span>
+              <label htmlFor="endDatum" className="block text-sm font-medium text-gray-700 mb-1">
+                Enddatum *
               </label>
               <input
                 type="date"
                 id="endDatum"
                 value={formatForInput(endDatum)}
                 onChange={(e) => setEndDatum(formatFromInput(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
-                aria-required="true"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               {endDatum && (
                 <p className="text-xs text-gray-500 mt-1">{formatToSwiss(endDatum)}</p>
@@ -183,16 +200,16 @@ export default function NewGoal() {
 
           {/* Status */}
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
-              Status <span className="text-red-500">*</span>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+              Status *
             </label>
             <select
               id="status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as 'offen' | 'in Arbeit' | 'erledigt')}
+              onChange={(e) =>
+                setStatus(e.target.value as 'offen' | 'in Arbeit' | 'erledigt')
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-              aria-required="true"
             >
               <option value="offen">Offen</option>
               <option value="in Arbeit">In Arbeit</option>
@@ -202,8 +219,8 @@ export default function NewGoal() {
 
           {/* Parent-Ziel */}
           <div>
-            <label htmlFor="parentId" className="block text-sm font-medium text-gray-700 mb-2">
-              Übergeordnetes Ziel (optional)
+            <label htmlFor="parentId" className="block text-sm font-medium text-gray-700 mb-1">
+              Übergeordnetes Ziel
             </label>
             <select
               id="parentId"
@@ -218,40 +235,30 @@ export default function NewGoal() {
                 </option>
               ))}
             </select>
-            <p className="mt-2 text-sm text-gray-500">
-              Wähle ein übergeordnetes Ziel aus, um ein Unterziel zu erstellen.
+            <p className="text-xs text-gray-500 mt-1">
+              Optional: Ordne dieses Ziel einem Hauptziel unter
             </p>
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-3 pt-4">
             <button
               type="submit"
-              disabled={loading}
+              disabled={saving}
               className="flex-1 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-              aria-label="Ziel erstellen"
             >
-              {loading ? '⏳ Erstelle Ziel...' : '✓ Ziel erstellen'}
+              {saving ? '💾 Speichere...' : '💾 Änderungen speichern'}
             </button>
             <button
               type="button"
               onClick={handleCancel}
-              disabled={loading}
+              disabled={saving}
               className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 disabled:bg-gray-100 transition-colors"
-              aria-label="Abbrechen"
             >
               Abbrechen
             </button>
           </div>
         </form>
-
-        {/* Hinweis */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <strong>Tipp:</strong> Nach dem Erstellen kannst du das Ziel in der Timeline- oder
-            Zielbaum-Ansicht per Drag & Drop verschieben und die Hierarchie ändern.
-          </p>
-        </div>
       </div>
     </div>
   );

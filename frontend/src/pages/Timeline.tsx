@@ -15,23 +15,50 @@ const STATUS_COLORS = {
 export default function Timeline() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineInstance = useRef<VisTimeline | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Initial auf true, damit Timeline-Container gerendert wird
   const [error, setError] = useState<string | null>(null);
   const [goalsData, setGoalsData] = useState<Ziel[]>([]);
   const navigate = useNavigate();
 
+  // Effekt 1: Daten laden
   useEffect(() => {
-    const loadAndRenderTimeline = async () => {
+    const loadGoals = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        // Ziele von API laden
         const data = await getGoals(false) as Ziel[];
-        console.log('Ziele geladen:', data);
+        console.log('✅ Ziele geladen:', data);
+        console.log('📊 Anzahl Ziele:', data.length);
         setGoalsData(data);
+      } catch (err) {
+        const error = err as Error;
+        console.error('❌ Fehler beim Laden der Ziele:', error);
+        setError(error.message || 'Fehler beim Laden der Ziele');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        if (!timelineRef.current) return;
+    loadGoals();
+  }, []);
+
+  // Effekt 2: Timeline initialisieren (wenn Daten vorhanden sind)
+  useEffect(() => {
+    if (loading || error || goalsData.length === 0) {
+      console.log('⏸️ Timeline-Init übersprungen:', { loading, error: !!error, dataLength: goalsData.length });
+      return;
+    }
+
+    const initTimeline = async () => {
+      console.log('🔍 timelineRef.current:', timelineRef.current);
+      if (!timelineRef.current) {
+        console.error('❌ timelineRef.current ist NULL! Timeline-Container existiert nicht im DOM.');
+        return;
+      }
+      console.log('✅ Timeline-Container gefunden');
+
+      try {
 
         // Daten für vis-timeline mappen
         const items = new DataSet<{
@@ -42,7 +69,7 @@ export default function Timeline() {
           style: string;
           title: string;
         }>(
-          data.map((ziel) => ({
+          goalsData.map((ziel) => ({
             id: ziel.id,
             content: ziel.titel,
             start: ziel.start_datum,
@@ -51,6 +78,9 @@ export default function Timeline() {
             title: `${ziel.titel} - Status: ${ziel.status}`, // Tooltip
           }))
         );
+
+        console.log('🗺️ Timeline Items gemappt:', items.get());
+        console.log('📈 Anzahl Items:', items.length);
 
         // Timeline-Optionen
         const options = {
@@ -72,14 +102,34 @@ export default function Timeline() {
         };
 
         // Timeline erstellen oder aktualisieren
+        console.log('🔧 Timeline-Instanz existiert bereits?', !!timelineInstance.current);
+        
         if (timelineInstance.current) {
+          console.log('🔄 Aktualisiere bestehende Timeline...');
           timelineInstance.current.setItems(items);
+          timelineInstance.current.fit(); // Timeline auf Items fokussieren
+          console.log('✅ Timeline aktualisiert mit', items.length, 'Items');
         } else {
-          timelineInstance.current = new VisTimeline(
-            timelineRef.current,
-            items,
-            options
-          );
+          console.log('🆕 Erstelle neue Timeline...');
+          try {
+            timelineInstance.current = new VisTimeline(
+              timelineRef.current,
+              items,
+              options
+            );
+            console.log('✅ Timeline erfolgreich erstellt mit', items.length, 'Items');
+          } catch (err) {
+            console.error('❌ Fehler beim Erstellen der Timeline:', err);
+            throw err;
+          }
+
+          // Timeline auf den sichtbaren Bereich der Items fokussieren
+          setTimeout(() => {
+            if (timelineInstance.current) {
+              timelineInstance.current.fit();
+              console.log('🎯 Timeline fokussiert auf Items');
+            }
+          }, 100);
 
           // Klick-Handler für Navigation zu Detail-Seite
           timelineInstance.current.on('select', (properties) => {
@@ -95,7 +145,7 @@ export default function Timeline() {
             
             // Prüfe welche Items geändert wurden
             for (const item of changedItems) {
-              const originalGoal = data.find((g) => g.id === item.id);
+              const originalGoal = goalsData.find((g) => g.id === item.id);
               
               if (!originalGoal) continue;
               
@@ -132,24 +182,21 @@ export default function Timeline() {
           });
         }
       } catch (err) {
-        const error = err as Error;
-        console.error('Fehler beim Laden der Ziele:', error);
-        setError(error.message || 'Fehler beim Laden der Ziele');
-      } finally {
-        setLoading(false);
+        console.error('❌ Fehler beim Initialisieren der Timeline:', err);
       }
     };
 
-    loadAndRenderTimeline();
+    initTimeline();
 
     // Cleanup beim Unmount
     return () => {
       if (timelineInstance.current) {
+        console.log('🧹 Timeline wird zerstört');
         timelineInstance.current.destroy();
         timelineInstance.current = null;
       }
     };
-  }, [navigate]);
+  }, [goalsData, loading, error, navigate]);
 
   // Leerer Zustand - keine Ziele vorhanden
   if (!loading && !error && goalsData.length === 0) {
@@ -197,12 +244,6 @@ export default function Timeline() {
         </div>
       </div>
       
-      {loading && (
-        <div className="flex justify-center items-center h-64">
-          <p className="text-gray-600">Lade Ziele...</p>
-        </div>
-      )}
-      
       {error && (
         <div className="bg-red-50 border border-red-200 rounded p-4">
           <p className="text-red-600">
@@ -215,11 +256,19 @@ export default function Timeline() {
         </div>
       )}
       
-      {!loading && !error && (
-        <div 
-          ref={timelineRef} 
-          className="border border-gray-200 rounded"
-        ></div>
+      {!error && (
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 flex justify-center items-center bg-white bg-opacity-75 z-10">
+              <p className="text-gray-600">Lade Ziele...</p>
+            </div>
+          )}
+          <div 
+            ref={timelineRef} 
+            className="border border-gray-200 rounded"
+            style={{ minHeight: '500px' }}
+          ></div>
+        </div>
       )}
     </div>
   );
