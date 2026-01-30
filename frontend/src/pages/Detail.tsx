@@ -155,26 +155,91 @@ export default function Detail() {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      {/* Header mit Zurück-Button */}
-      <div className="mb-6">
+      {/* Header-Zeile 1: Navigation-Buttons */}
+      <div className="mb-4 flex items-center gap-3">
         <button
           onClick={() => navigate(-1)}
-          className="text-sm text-gray-600 hover:text-gray-900 mb-2 flex items-center gap-1"
+          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
         >
           ← Zurück
         </button>
-        <h2 className="text-3xl font-bold text-gray-900">{goal.titel}</h2>
+        
+        <Link
+          to={`/ziel/${goal.id}/bearbeiten`}
+          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
+          aria-label="Ziel bearbeiten"
+        >
+          ✏️ Bearbeiten
+        </Link>
+
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          disabled={updating || deleting}
+          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+          aria-label="Ziel löschen"
+        >
+          🗑️ Löschen
+        </button>
       </div>
 
-      {/* Status-Badge */}
-      <div className="mb-6">
-        <span
-          className={`inline-block px-4 py-2 rounded-full text-sm font-medium border ${
-            STATUS_COLORS[goal.status] || STATUS_COLORS.offen
-          }`}
-        >
-          {goal.status}
-        </span>
+      {/* Header-Zeile 2: Titel + Status + Status-Buttons */}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h2 className="text-3xl font-bold text-gray-900 flex-1">{goal.titel}</h2>
+        
+        <div className="flex items-center gap-3">
+          {/* Status-Badge */}
+          <span
+            className={`inline-block px-4 py-2 rounded-full text-sm font-medium border ${
+              STATUS_COLORS[goal.status] || STATUS_COLORS.offen
+            }`}
+          >
+            {goal.status}
+          </span>
+
+          {/* Status-Wechsel Buttons */}
+          {goal.status !== 'erledigt' && (
+            <button
+              onClick={handleComplete}
+              disabled={updating}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              aria-label="Ziel als erledigt markieren"
+              aria-disabled={updating}
+            >
+              {updating ? '⏳ ...' : '✓ Erledigt'}
+            </button>
+          )}
+
+          {goal.status === 'offen' && (
+            <button
+              onClick={() => handleStatusChange('in Arbeit')}
+              disabled={updating}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+              aria-label="Ziel in Arbeit nehmen"
+            >
+              In Arbeit
+            </button>
+          )}
+
+          {goal.status === 'in Arbeit' && (
+            <button
+              onClick={() => handleStatusChange('offen')}
+              disabled={updating}
+              className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
+            >
+              Zu Offen
+            </button>
+          )}
+
+          {goal.status === 'erledigt' && (
+            <button
+              onClick={() => handleStatusChange('offen')}
+              disabled={updating}
+              className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
+            >
+              Wieder öffnen
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tab-Navigation */}
@@ -289,80 +354,6 @@ export default function Detail() {
           </Link>
         </div>
       )}
-
-      {/* Aktionen */}
-      <div className="border-t pt-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Aktionen</h3>
-        <div className="flex flex-wrap gap-3">
-          {/* Bearbeiten-Button */}
-          <Link
-            to={`/ziel/${goal.id}/bearbeiten`}
-            className="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-            aria-label="Ziel bearbeiten"
-          >
-            ✏️ Bearbeiten
-          </Link>
-
-          {/* Abhaken-Button (nur wenn nicht erledigt) */}
-          {goal.status !== 'erledigt' && (
-            <button
-              onClick={handleComplete}
-              disabled={updating}
-              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              aria-label="Ziel als erledigt markieren"
-              aria-disabled={updating}
-            >
-              {updating ? (
-                <>⏳ Aktualisiere...</>
-              ) : (
-                <>✓ Als erledigt markieren</>
-              )}
-            </button>
-          )}
-
-          {/* Status-Wechsel Buttons */}
-          {goal.status === 'offen' && (
-            <button
-              onClick={() => handleStatusChange('in Arbeit')}
-              disabled={updating}
-              className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-              aria-label="Ziel in Arbeit nehmen"
-            >
-              In Arbeit nehmen
-            </button>
-          )}
-
-          {goal.status === 'in Arbeit' && (
-            <button
-              onClick={() => handleStatusChange('offen')}
-              disabled={updating}
-              className="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
-            >
-              Zurück zu Offen
-            </button>
-          )}
-
-          {goal.status === 'erledigt' && (
-            <button
-              onClick={() => handleStatusChange('offen')}
-              disabled={updating}
-              className="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 disabled:bg-gray-400 transition-colors"
-            >
-              Wieder öffnen
-            </button>
-          )}
-
-          {/* Löschen-Button */}
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            disabled={updating || deleting}
-            className="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-            aria-label="Ziel löschen"
-          >
-            🗑️ Löschen
-          </button>
-        </div>
-      </div>
 
       {/* Erfolgs-Meldung bei erledigtem Ziel */}
       {goal.status === 'erledigt' && (
