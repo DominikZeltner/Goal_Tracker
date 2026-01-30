@@ -1,5 +1,5 @@
 # Konzept 1.4 / Phase 2.2: Pydantic-Modelle für Ziel
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -48,3 +48,18 @@ class ZielReadWithChildren(BaseModel):
 
 # Forward-Referenz für rekursive Struktur auflösen
 ZielReadWithChildren.model_rebuild()
+
+
+class ZielHistoryRead(BaseModel):
+    """Schema zum Lesen eines History-Eintrags."""
+
+    id: int
+    ziel_id: int
+    changed_at: datetime
+    change_type: str
+    field_name: str | None = None
+    old_value: str | None = None
+    new_value: str | None = None
+
+    class Config:
+        from_attributes = True

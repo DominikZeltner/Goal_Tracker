@@ -1,11 +1,13 @@
 
+from datetime import datetime
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models import Base, SessionLocal, Ziel, engine
-from schemas import ZielCreate, ZielRead, ZielReadWithChildren
+from models import Base, SessionLocal, Ziel, ZielHistory, engine
+from schemas import ZielCreate, ZielHistoryRead, ZielRead, ZielReadWithChildren
 
 # Konzept Phase 2.3: Tabellen beim App-Start anlegen
 Base.metadata.create_all(bind=engine)
@@ -52,6 +54,10 @@ def create_ziel(ziel: ZielCreate, db: Session = Depends(get_db)) -> ZielRead:
     db.commit()
     db.refresh(db_ziel)
     
+    # History-Eintrag: Ziel erstellt
+    log_history(db, db_ziel.id, "created")
+    db.commit()
+    
     # Eltern-Ziel-Daten aktualisieren, falls ein Parent existiert
     if db_ziel.parent_id:
         update_parent_dates(db_ziel.parent_id, db)
@@ -96,6 +102,20 @@ def get_ziel(ziel_id: int, db: Session = Depends(get_db)) -> ZielRead:
     return ZielRead.model_validate(ziel)
 
 
+@app.get("/ziele/{ziel_id}/history", response_model=list[ZielHistoryRead])
+def get_ziel_history(ziel_id: int, db: Session = Depends(get_db)) -> list[ZielHistoryRead]:
+    """History-Einträge für ein Ziel laden (chronologisch)."""
+    # Prüfe ob Ziel existiert
+    ziel = db.get(Ziel, ziel_id)
+    if ziel is None:
+        raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
+    
+    # Lade History-Einträge (neueste zuerst)
+    stmt = select(ZielHistory).where(ZielHistory.ziel_id == ziel_id).order_by(ZielHistory.changed_at.desc())
+    history_entries = db.scalars(stmt).all()
+    return [ZielHistoryRead.model_validate(entry) for entry in history_entries]
+
+
 @app.put("/ziele/{ziel_id}", response_model=ZielRead)
 def update_ziel(
     ziel_id: int, ziel: ZielCreate, db: Session = Depends(get_db)
@@ -107,8 +127,16 @@ def update_ziel(
     
     old_parent_id = db_ziel.parent_id
     
+    # History-Logging: Geänderte Felder tracken
     for key, value in ziel.model_dump().items():
+        old_val = getattr(db_ziel, key)
+        if old_val != value:
+            # Konvertiere Werte zu String für History
+            old_str = str(old_val) if old_val is not None else None
+            new_str = str(value) if value is not None else None
+            log_history(db, ziel_id, "updated", field_name=key, old_value=old_str, new_value=new_str)
         setattr(db_ziel, key, value)
+    
     db.commit()
     db.refresh(db_ziel)
     
@@ -133,7 +161,15 @@ def update_ziel_status(
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
     if "status" not in status:
         raise HTTPException(status_code=400, detail="Status-Feld fehlt")
-    db_ziel.status = status["status"]
+    
+    old_status = db_ziel.status
+    new_status = status["status"]
+    
+    # History-Eintrag: Status geändert
+    if old_status != new_status:
+        log_history(db, ziel_id, "status_changed", field_name="status", old_value=old_status, new_value=new_status)
+    
+    db_ziel.status = new_status
     db.commit()
     db.refresh(db_ziel)
     return ZielRead.model_validate(db_ziel)
@@ -202,6 +238,27 @@ def update_parent_dates(parent_id: int, db: Session) -> None:
     # REKURSIV: Falls dieses Ziel selbst ein Parent hat, auch dieses aktualisieren
     if parent.parent_id:
         update_parent_dates(parent.parent_id, db)
+
+
+def log_history(
+    db: Session,
+    ziel_id: int,
+    change_type: str,
+    field_name: str | None = None,
+    old_value: str | None = None,
+    new_value: str | None = None
+) -> None:
+    """Helper-Funktion zum Logging von Änderungen."""
+    history_entry = ZielHistory(
+        ziel_id=ziel_id,
+        changed_at=datetime.utcnow(),
+        change_type=change_type,
+        field_name=field_name,
+        old_value=old_value,
+        new_value=new_value
+    )
+    db.add(history_entry)
+    # Kein commit hier - wird vom Haupt-Endpoint gemacht
 
 
 # Hilfsfunktion für hierarchische Struktur

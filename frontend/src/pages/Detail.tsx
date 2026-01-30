@@ -4,6 +4,7 @@ import { getGoalWithChildren, updateStatus, deleteGoal, ZielWithChildren } from 
 import ProgressBar from '../components/ProgressBar';
 import { calculateProgress, countCompletedChildren } from '../utils/progress';
 import { formatToSwiss, daysUntilText } from '../utils/dateFormat';
+import HistoryTab from '../components/HistoryTab';
 
 // Status-Farben
 const STATUS_COLORS = {
@@ -21,6 +22,7 @@ export default function Detail() {
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'detail' | 'history'>('detail');
 
   // Ziel laden (mit Unterzielen für Fortschritts-Berechnung)
   const loadGoal = async () => {
@@ -175,7 +177,36 @@ export default function Detail() {
         </span>
       </div>
 
-      {/* Beschreibung */}
+      {/* Tab-Navigation */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="flex space-x-8" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('detail')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'detail'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Details
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'history'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            📜 History
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab-Content: Detail */}
+      {activeTab === 'detail' && (
+        <>
+          {/* Beschreibung */}
       {goal.beschreibung && (
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-2">Beschreibung</h3>
@@ -341,6 +372,11 @@ export default function Detail() {
           </p>
         </div>
       )}
+        </>
+      )}
+
+      {/* Tab-Content: History */}
+      {activeTab === 'history' && <HistoryTab goalId={parseInt(id!)} />}
 
       {/* Löschen-Bestätigungs-Modal */}
       {showDeleteModal && (

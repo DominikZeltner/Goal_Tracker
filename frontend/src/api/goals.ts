@@ -44,6 +44,16 @@ export interface ZielWithChildren extends Ziel {
   children?: ZielWithChildren[];
 }
 
+export interface ZielHistory {
+  id: number;
+  ziel_id: number;
+  changed_at: string;  // ISO datetime string
+  change_type: string;  // 'created', 'updated', 'status_changed', 'deleted', 'comment_added'
+  field_name?: string;
+  old_value?: string;
+  new_value?: string;
+}
+
 // API-Funktionen
 export const getGoals = async (tree: boolean = false): Promise<Ziel[] | ZielWithChildren[]> => {
   const response = await apiClient.get('/ziele', {
@@ -101,6 +111,11 @@ export const deleteGoal = async (id: number, cascade: boolean = false): Promise<
   await apiClient.delete(`/ziele/${id}`, {
     params: { cascade },
   });
+};
+
+export const getGoalHistory = async (id: number): Promise<ZielHistory[]> => {
+  const response = await apiClient.get(`/ziele/${id}/history`);
+  return response.data;
 };
 
 // Export der API-Base-URL für Debugging

@@ -1,8 +1,8 @@
 # Konzept 1.3 / Phase 2.1: SQLAlchemy-Modell für Ziel
 import os
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, Integer, String, create_engine
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
 
 # DB-Pfad aus Umgebungsvariable, Default ./database.db
@@ -36,3 +36,26 @@ class Ziel(Base):
     children: Mapped[list["Ziel"]] = relationship(
         "Ziel", backref="parent", remote_side=[id], cascade="all, delete-orphan", single_parent=True
     )
+    
+    # Relationship für History
+    history: Mapped[list["ZielHistory"]] = relationship(
+        "ZielHistory", back_populates="ziel", cascade="all, delete-orphan"
+    )
+
+
+class ZielHistory(Base):
+    """History-Tabelle für Änderungen an Zielen."""
+
+    __tablename__ = "ziel_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ziel_id: Mapped[int] = mapped_column(Integer, ForeignKey("ziel.id"), nullable=False)
+    changed_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    change_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    # 'created', 'updated', 'status_changed', 'deleted', 'comment_added'
+    field_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Relationship
+    ziel: Mapped["Ziel"] = relationship("Ziel", back_populates="history")
