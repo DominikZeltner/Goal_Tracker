@@ -63,3 +63,21 @@ class ZielHistoryRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class KommentarCreate(BaseModel):
+    """Schema zum Erstellen eines Kommentars."""
+
+    content: str
+
+
+class KommentarRead(BaseModel):
+    """Schema zum Lesen eines Kommentars."""
+
+    id: int
+    ziel_id: int
+    created_at: datetime
+    content: str
+
+    class Config:
+        from_attributes = True

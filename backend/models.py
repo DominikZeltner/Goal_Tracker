@@ -41,6 +41,11 @@ class Ziel(Base):
     history: Mapped[list["ZielHistory"]] = relationship(
         "ZielHistory", back_populates="ziel", cascade="all, delete-orphan"
     )
+    
+    # Relationship für Kommentare
+    kommentare: Mapped[list["Kommentar"]] = relationship(
+        "Kommentar", back_populates="ziel", cascade="all, delete-orphan"
+    )
 
 
 class ZielHistory(Base):
@@ -59,3 +64,21 @@ class ZielHistory(Base):
 
     # Relationship
     ziel: Mapped["Ziel"] = relationship("Ziel", back_populates="history")
+
+
+class Kommentar(Base):
+    """Kommentare/Notizen zu Zielen."""
+
+    __tablename__ = "kommentar"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ziel_id: Mapped[int] = mapped_column(Integer, ForeignKey("ziel.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Relationship
+    ziel: Mapped["Ziel"] = relationship("Ziel", back_populates="kommentare")
+
+
+# Alle Tabellen erstellen
+Base.metadata.create_all(bind=engine)

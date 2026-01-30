@@ -6,8 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models import Base, SessionLocal, Ziel, ZielHistory, engine
-from schemas import ZielCreate, ZielHistoryRead, ZielRead, ZielReadWithChildren
+from models import Base, Kommentar, SessionLocal, Ziel, ZielHistory, engine
+from schemas import (
+    KommentarCreate,
+    KommentarRead,
+    ZielCreate,
+    ZielHistoryRead,
+    ZielRead,
+    ZielReadWithChildren,
+)
 
 # Konzept Phase 2.3: Tabellen beim App-Start anlegen
 Base.metadata.create_all(bind=engine)
@@ -281,6 +288,74 @@ def build_tree(ziel: Ziel, db: Session) -> ZielReadWithChildren:
         "children": children_data
     }
     return ZielReadWithChildren(**ziel_dict)
+
+
+# ===== KOMMENTAR-ENDPOINTS =====
+
+@app.post("/ziele/{ziel_id}/kommentare", response_model=KommentarRead, status_code=201)
+def create_kommentar(
+    ziel_id: int,
+    kommentar_data: KommentarCreate,
+    db: Session = Depends(get_db)
+) -> KommentarRead:
+    """Erstellt einen neuen Kommentar für ein Ziel."""
+    # Prüfen, ob Ziel existiert
+    ziel = db.get(Ziel, ziel_id)
+    if not ziel:
+        raise HTTPException(status_code=404, detail=f"Ziel mit ID {ziel_id} nicht gefunden")
+    
+    # Kommentar erstellen
+    new_kommentar = Kommentar(
+        ziel_id=ziel_id,
+        created_at=datetime.utcnow(),
+        content=kommentar_data.content
+    )
+    db.add(new_kommentar)
+    
+    # History-Eintrag für Kommentar
+    log_history(
+        db=db,
+        ziel_id=ziel_id,
+        change_type="comment_added",
+        new_value=f"Kommentar hinzugefügt (ID: {new_kommentar.id})"
+    )
+    
+    db.commit()
+    db.refresh(new_kommentar)
+    return new_kommentar
+
+
+@app.get("/ziele/{ziel_id}/kommentare", response_model=list[KommentarRead])
+def get_kommentare(ziel_id: int, db: Session = Depends(get_db)) -> list[KommentarRead]:
+    """Gibt alle Kommentare eines Ziels zurück (chronologisch)."""
+    # Prüfen, ob Ziel existiert
+    ziel = db.get(Ziel, ziel_id)
+    if not ziel:
+        raise HTTPException(status_code=404, detail=f"Ziel mit ID {ziel_id} nicht gefunden")
+    
+    # Kommentare abrufen (nach Erstellungsdatum absteigend)
+    stmt = (
+        select(Kommentar)
+        .where(Kommentar.ziel_id == ziel_id)
+        .order_by(Kommentar.created_at.desc())
+    )
+    kommentare = db.execute(stmt).scalars().all()
+    return list(kommentare)
+
+
+@app.delete("/kommentare/{kommentar_id}", status_code=204)
+def delete_kommentar(kommentar_id: int, db: Session = Depends(get_db)) -> None:
+    """Löscht einen Kommentar."""
+    kommentar = db.get(Kommentar, kommentar_id)
+    if not kommentar:
+        raise HTTPException(status_code=404, detail=f"Kommentar mit ID {kommentar_id} nicht gefunden")
+    
+    ziel_id = kommentar.ziel_id
+    db.delete(kommentar)
+    db.commit()
+    
+    # Kein History-Eintrag beim Löschen von Kommentaren
+    # (optional: könnte man hinzufügen)
 
 
 if __name__ == "__main__":

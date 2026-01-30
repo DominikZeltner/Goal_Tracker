@@ -5,6 +5,7 @@ import ProgressBar from '../components/ProgressBar';
 import { calculateProgress, countCompletedChildren } from '../utils/progress';
 import { formatToSwiss, daysUntilText } from '../utils/dateFormat';
 import HistoryTab from '../components/HistoryTab';
+import CommentSection from '../components/CommentSection';
 
 // Status-Farben
 const STATUS_COLORS = {
@@ -355,6 +356,11 @@ export default function Detail() {
           </p>
         </div>
       )}
+
+      {/* Kommentare */}
+      <div className="mt-8 border-t pt-6">
+        <CommentSection goalId={parseInt(id!)} />
+      </div>
         </div>
 
         {/* History Sidebar (Right) */}

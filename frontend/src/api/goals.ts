@@ -118,5 +118,32 @@ export const getGoalHistory = async (id: number): Promise<ZielHistory[]> => {
   return response.data;
 };
 
+// ===== KOMMENTAR-FUNKTIONEN =====
+
+export interface Kommentar {
+  id: number;
+  ziel_id: number;
+  created_at: string;  // ISO datetime string
+  content: string;
+}
+
+export interface KommentarCreate {
+  content: string;
+}
+
+export const getKommentare = async (zielId: number): Promise<Kommentar[]> => {
+  const response = await apiClient.get(`/ziele/${zielId}/kommentare`);
+  return response.data;
+};
+
+export const createKommentar = async (zielId: number, data: KommentarCreate): Promise<Kommentar> => {
+  const response = await apiClient.post(`/ziele/${zielId}/kommentare`, data);
+  return response.data;
+};
+
+export const deleteKommentar = async (kommentarId: number): Promise<void> => {
+  await apiClient.delete(`/kommentare/${kommentarId}`);
+};
+
 // Export der API-Base-URL für Debugging
 export const getApiBaseUrl = (): string => API_BASE_URL;
