@@ -175,6 +175,7 @@ def update_parent_dates(parent_id: int, db: Session) -> None:
     """
     Aktualisiert die Daten eines Eltern-Ziels basierend auf seinen Unterzielen.
     Setzt start_datum auf das kleinste und end_datum auf das größte der Unterziele.
+    Funktion ist rekursiv - aktualisiert die komplette Hierarchie nach oben.
     """
     # Eltern-Ziel laden
     parent = db.get(Ziel, parent_id)
@@ -197,6 +198,10 @@ def update_parent_dates(parent_id: int, db: Session) -> None:
     parent.start_datum = min_start
     parent.end_datum = max_end
     db.commit()
+    
+    # REKURSIV: Falls dieses Ziel selbst ein Parent hat, auch dieses aktualisieren
+    if parent.parent_id:
+        update_parent_dates(parent.parent_id, db)
 
 
 # Hilfsfunktion für hierarchische Struktur
