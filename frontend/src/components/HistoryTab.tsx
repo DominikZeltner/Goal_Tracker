@@ -95,10 +95,6 @@ export default function HistoryTab({ goalId }: HistoryTabProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-semibold text-gray-800 mb-4">
-        📜 Änderungshistorie
-      </h3>
-
       <div className="space-y-3">
         {history.map((entry) => (
           <div

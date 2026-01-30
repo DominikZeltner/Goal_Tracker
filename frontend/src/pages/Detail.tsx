@@ -360,7 +360,7 @@ export default function Detail() {
         {/* History Sidebar (Right) */}
         {showHistory && (
           <div className="w-[40%] border-l pl-6 flex flex-col max-h-[calc(100vh-12rem)]">
-            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 flex-shrink-0">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2 flex-shrink-0">
               📜 History
             </h3>
             <div className="overflow-y-auto flex-1 pr-2">
