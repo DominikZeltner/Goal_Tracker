@@ -331,6 +331,107 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
 
 ---
 
+## Phase 13.5: Kategorien & Filter
+**Dauer:** 2 Sessions  
+**Ziel:** Ziele kategorisieren und filtern können
+
+### Sprint 13.5.1: Kategorien-System (1 Session)
+**Priorität:** MITTEL  
+**Aufgaben:**
+- [ ] Backend: Kategorie-System
+  - Neue Spalte: `kategorie` VARCHAR(100) in Ziel-Tabelle
+  - Optional: Separate `kategorie`-Tabelle für vordefinierte Kategorien
+  - Beispiel-Kategorien: "Beruf", "Privat", "Gesundheit", "Finanzen", "Bildung"
+- [ ] Backend: API erweitern
+  - GET /kategorien (Liste aller verwendeten Kategorien)
+  - GET /ziele?kategorie=Beruf (Filter-Parameter)
+- [ ] Frontend: Kategorie-Auswahl
+  - Dropdown im "Neues Ziel"-Formular
+  - Kategorie auf Detail-Seite anzeigen
+  - Badge mit Kategorie-Farbe
+
+**Offene Fragen:**
+- ❓ **Was passiert, wenn Unterziele andere Kategorien haben als das Hauptziel?**
+  - Option A: Unterziele erben automatisch die Kategorie des Hauptziels
+  - Option B: Unterziele können eigene Kategorien haben (flexibler)
+  - Option C: Warnung anzeigen bei unterschiedlichen Kategorien
+- ❓ **Was passiert beim Filtern mit Unterzielen?**
+  - Option A: Zeige nur Ziele mit exakter Kategorie (Unterziele werden ausgeblendet)
+  - Option B: Zeige auch Unterziele, wenn Hauptziel passt (hierarchisch)
+  - Option C: Zeige Hauptziel, wenn mindestens 1 Unterziel die Kategorie hat
+
+**Technische Details:**
+- Kategorie-Farben: Vordefiniertes Color-Mapping
+- Datenmodell: `kategorie: Optional[str]` (NULL erlaubt für Legacy-Ziele)
+
+**Dateien:**
+- `backend/models.py` (Ziel.kategorie hinzufügen)
+- `backend/schemas.py` (ZielCreate erweitern)
+- `backend/main.py` (GET /kategorien, Filter)
+- `frontend/src/pages/NewGoal.tsx` (Kategorie-Dropdown)
+- `frontend/src/pages/EditGoal.tsx` (Kategorie-Dropdown)
+- `frontend/src/pages/Detail.tsx` (Kategorie-Badge)
+
+---
+
+### Sprint 13.5.2: Filter-Funktion (1 Session)
+**Priorität:** MITTEL  
+**Aufgaben:**
+- [ ] Frontend: Filter-UI
+  - Dropdown/Checkbox-Liste für Kategorien
+  - Multi-Select möglich (z.B. "Beruf" UND "Bildung")
+  - "Alle Kategorien"-Option
+  - Filter-Button oder Auto-Filter
+- [ ] Timeline: Filter anwenden
+  - Zeige nur Ziele mit ausgewählten Kategorien
+  - Leere Nachricht: "Keine Ziele in dieser Kategorie"
+- [ ] Zielbaum: Filter anwenden
+  - Zeige nur Hauptziele mit ausgewählten Kategorien
+  - Unterziel-Handling abhängig von offenen Fragen (siehe oben)
+- [ ] Filter-State persistieren
+  - LocalStorage: Letzte Filter-Auswahl speichern
+  - URL-Parameter: `/timeline?kategorie=Beruf`
+
+**Technische Details:**
+- State-Management: `useState` für Filter
+- Filter-Logik: Client-seitig oder Server-seitig (API-Parameter)
+- Performance: Bei vielen Zielen → Server-seitiger Filter bevorzugt
+
+**Dateien:**
+- `frontend/src/components/CategoryFilter.tsx` (neu)
+- `frontend/src/pages/Timeline.tsx` (Filter einbinden)
+- `frontend/src/pages/Tree.tsx` (Filter einbinden)
+- `frontend/src/hooks/useFilterState.ts` (neu, für LocalStorage)
+
+---
+
+### Offene Design-Entscheidungen
+
+**1. Kategorie-Vererbung:**
+```
+Hauptziel "Karriere" (Kategorie: Beruf)
+  └── Unterziel "Excel-Kurs" (Kategorie: Bildung)  ← Erlaubt?
+```
+**Empfehlung:** Option B - Unterziele können eigene Kategorien haben (flexibler)
+
+**2. Filter-Verhalten bei Hierarchien:**
+```
+Filter: "Beruf"
+Timeline zeigt:
+  - Hauptziel "Karriere" (Kategorie: Beruf) ✅
+    - Unterziel "Excel-Kurs" (Kategorie: Bildung) ❓
+```
+**Empfehlung:** Option C - Zeige Hauptziel, wenn mindestens 1 Unterziel die Kategorie hat
+- Zusätzlich: Visueller Hinweis (z.B. Badge "2 von 5 Unterzielen")
+
+**3. Multi-Kategorie pro Ziel:**
+```
+Ziel "Homeoffice-Setup" → Kategorien: "Beruf" UND "Finanzen"
+```
+**Empfehlung:** Zunächst 1 Kategorie pro Ziel, später erweitern zu Tags (Many-to-Many)
+
+---
+
 ## Phase 14: LLM/AI-Integration
 **Dauer:** 4-6 Sessions  
 **Ziel:** Chatbot-Steuerung & intelligente Analysen
@@ -459,10 +560,11 @@ Die Basis-Funktionalität ist implementiert und läuft. Jetzt folgt der Ausbau.
 |-------|-----------|--------|--------|------------------------|
 | **Phase 9** (CRUD) | ⭐⭐⭐ HOCH | Hoch | Mittel | **1** |
 | **Phase 10** (History) | ⭐⭐ MITTEL | Mittel | Mittel | **2** |
-| **Phase 11** (Animationen) | ⭐ NIEDRIG | Niedrig | Niedrig | **5** |
+| **Phase 11** (Animationen) | ⭐ NIEDRIG | Niedrig | Niedrig | **6** |
 | **Phase 12** (Numerisch) | ⭐⭐ MITTEL | Hoch | Mittel | **3** |
-| **Phase 13** (Notifications) | ⭐ NIEDRIG | Mittel | Mittel | **4** |
-| **Phase 14** (AI/LLM) | ⭐ NIEDRIG | Hoch | Hoch | **6** |
+| **Phase 13** (Notifications) | ⭐ NIEDRIG | Mittel | Mittel | **5** |
+| **Phase 13.5** (Kategorien) | ⭐⭐ MITTEL | Mittel | Mittel | **4** |
+| **Phase 14** (AI/LLM) | ⭐ NIEDRIG | Hoch | Hoch | **7** |
 
 ---
 
