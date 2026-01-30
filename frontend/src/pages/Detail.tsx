@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getGoalWithChildren, updateStatus, ZielWithChildren } from '../api/goals';
+import { getGoalWithChildren, updateStatus, deleteGoal, ZielWithChildren } from '../api/goals';
 import ProgressBar from '../components/ProgressBar';
 import { calculateProgress, countCompletedChildren } from '../utils/progress';
 import { formatToSwiss, daysUntilText } from '../utils/dateFormat';
@@ -19,6 +19,8 @@ export default function Detail() {
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Ziel laden (mit Unterzielen für Fortschritts-Berechnung)
   const loadGoal = async () => {
@@ -79,6 +81,27 @@ export default function Detail() {
       setError(error.message || 'Fehler beim Aktualisieren des Status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Ziel löschen
+  const handleDelete = async (cascade: boolean) => {
+    if (!id) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteGoal(parseInt(id), cascade);
+      console.log(`Ziel ${id} gelöscht (cascade: ${cascade})`);
+      // Zur Timeline navigieren
+      navigate('/');
+    } catch (err) {
+      const error = err as Error;
+      console.error('Fehler beim Löschen des Ziels:', error);
+      setError(error.message || 'Fehler beim Löschen des Ziels');
+      setShowDeleteModal(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -297,6 +320,16 @@ export default function Detail() {
               Wieder öffnen
             </button>
           )}
+
+          {/* Löschen-Button */}
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            disabled={updating || deleting}
+            className="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            aria-label="Ziel löschen"
+          >
+            🗑️ Löschen
+          </button>
         </div>
       </div>
 
@@ -306,6 +339,85 @@ export default function Detail() {
           <p className="text-green-800 font-medium">
             ✓ Dieses Ziel wurde erfolgreich abgeschlossen!
           </p>
+        </div>
+      )}
+
+      {/* Löschen-Bestätigungs-Modal */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => !deleting && setShowDeleteModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              Ziel löschen?
+            </h3>
+            <p className="text-gray-700 mb-6">
+              Möchtest du das Ziel <strong>"{goal.titel}"</strong> wirklich löschen?
+            </p>
+
+            {/* Warnung bei Unterzielen */}
+            {goal.children && goal.children.length > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6">
+                <p className="text-yellow-800 text-sm font-medium mb-3">
+                  ⚠️ Dieses Ziel hat {goal.children.length} Unterziel{goal.children.length > 1 ? 'e' : ''}.
+                </p>
+                <p className="text-gray-700 text-sm mb-3">
+                  Was soll gelöscht werden?
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => handleDelete(false)}
+                    disabled={deleting}
+                    className="w-full px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {deleting ? '⏳ Lösche...' : 'Nur dieses Ziel löschen'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(true)}
+                    disabled={deleting}
+                    className="w-full px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {deleting ? '⏳ Lösche...' : `Ziel + alle ${goal.children.length} Unterziele löschen`}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Buttons wenn keine Unterziele */}
+            {(!goal.children || goal.children.length === 0) && (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={() => handleDelete(false)}
+                  disabled={deleting}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  {deleting ? '⏳ Lösche...' : 'Ja, löschen'}
+                </button>
+              </div>
+            )}
+
+            {/* Abbrechen-Button wenn Unterziele vorhanden */}
+            {goal.children && goal.children.length > 0 && (
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="w-full mt-3 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+              >
+                Abbrechen
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

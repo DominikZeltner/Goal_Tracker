@@ -97,8 +97,10 @@ export const updateStatus = async (id: number, status: 'offen' | 'in Arbeit' | '
   return response.data;
 };
 
-export const deleteGoal = async (id: number): Promise<void> => {
-  await apiClient.delete(`/ziele/${id}`);
+export const deleteGoal = async (id: number, cascade: boolean = false): Promise<void> => {
+  await apiClient.delete(`/ziele/${id}`, {
+    params: { cascade },
+  });
 };
 
 // Export der API-Base-URL für Debugging

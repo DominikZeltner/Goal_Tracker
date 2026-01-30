@@ -17,6 +17,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { getGoals, updateGoal, ZielWithChildren } from '../api/goals';
 import { useNavigate, Link } from 'react-router-dom';
+import { formatToSwiss } from '../utils/dateFormat';
 
 // Farben nach Status
 const STATUS_COLORS = {
@@ -88,7 +89,7 @@ export default function Tree() {
           data: {
             label: goal.titel,
             status: goal.status,
-            dates: `${goal.start_datum} - ${goal.end_datum}`,
+            dates: `${formatToSwiss(goal.start_datum)} - ${formatToSwiss(goal.end_datum)}`,
           },
         });
 

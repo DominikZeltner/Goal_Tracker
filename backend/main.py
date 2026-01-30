@@ -51,6 +51,11 @@ def create_ziel(ziel: ZielCreate, db: Session = Depends(get_db)) -> ZielRead:
     db.add(db_ziel)
     db.commit()
     db.refresh(db_ziel)
+    
+    # Eltern-Ziel-Daten aktualisieren, falls ein Parent existiert
+    if db_ziel.parent_id:
+        update_parent_dates(db_ziel.parent_id, db)
+    
     return ZielRead.model_validate(db_ziel)
 
 
@@ -99,10 +104,22 @@ def update_ziel(
     db_ziel = db.get(Ziel, ziel_id)
     if db_ziel is None:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
+    
+    old_parent_id = db_ziel.parent_id
+    
     for key, value in ziel.model_dump().items():
         setattr(db_ziel, key, value)
     db.commit()
     db.refresh(db_ziel)
+    
+    # Eltern-Ziel-Daten aktualisieren (falls vorhanden)
+    if db_ziel.parent_id:
+        update_parent_dates(db_ziel.parent_id, db)
+    
+    # Falls parent_id geändert wurde, auch alten Parent aktualisieren
+    if old_parent_id and old_parent_id != db_ziel.parent_id:
+        update_parent_dates(old_parent_id, db)
+    
     return ZielRead.model_validate(db_ziel)
 
 
@@ -123,12 +140,62 @@ def update_ziel_status(
 
 
 @app.delete("/ziele/{ziel_id}", status_code=204)
-def delete_ziel(ziel_id: int, db: Session = Depends(get_db)) -> None:
-    """Ziel löschen."""
+def delete_ziel(
+    ziel_id: int,
+    cascade: bool = Query(False, description="True = Unterziele auch löschen"),
+    db: Session = Depends(get_db)
+) -> None:
+    """Ziel löschen (optional mit allen Unterzielen)."""
     db_ziel = db.get(Ziel, ziel_id)
     if db_ziel is None:
         raise HTTPException(status_code=404, detail="Ziel nicht gefunden")
-    db.delete(db_ziel)
+    
+    if cascade:
+        # Rekursiv alle Unterziele löschen
+        delete_with_children(db_ziel, db)
+    else:
+        # Nur dieses Ziel löschen
+        db.delete(db_ziel)
+    
+    db.commit()
+
+
+def delete_with_children(ziel: Ziel, db: Session) -> None:
+    """Rekursiv Ziel mit allen Unterzielen löschen."""
+    # Erst alle Kinder löschen
+    stmt = select(Ziel).where(Ziel.parent_id == ziel.id)
+    children = db.scalars(stmt).all()
+    for child in children:
+        delete_with_children(child, db)
+    # Dann das Ziel selbst löschen
+    db.delete(ziel)
+
+
+def update_parent_dates(parent_id: int, db: Session) -> None:
+    """
+    Aktualisiert die Daten eines Eltern-Ziels basierend auf seinen Unterzielen.
+    Setzt start_datum auf das kleinste und end_datum auf das größte der Unterziele.
+    """
+    # Eltern-Ziel laden
+    parent = db.get(Ziel, parent_id)
+    if not parent:
+        return
+    
+    # Alle Unterziele laden
+    stmt = select(Ziel).where(Ziel.parent_id == parent_id)
+    children = db.scalars(stmt).all()
+    
+    if not children:
+        # Keine Unterziele vorhanden - nichts zu tun
+        return
+    
+    # Kleinste und größte Daten finden
+    min_start = min(child.start_datum for child in children)
+    max_end = max(child.end_datum for child in children)
+    
+    # Eltern-Ziel aktualisieren
+    parent.start_datum = min_start
+    parent.end_datum = max_end
     db.commit()
 
 
